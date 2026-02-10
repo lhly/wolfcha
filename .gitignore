@@ -53,3 +53,6 @@ progress.md
 
 # git worktrees
 .worktrees/
+
+# local sqlite data
+data/*.db

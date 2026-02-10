@@ -9,14 +9,12 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
-  getLocalLlmApiKey,
-  getLocalLlmBaseUrl,
-  getLocalLlmModel,
-  setLocalLlmApiKey,
-  setLocalLlmBaseUrl,
-  setLocalLlmModel,
-  LOCAL_LLM_DEFAULTS,
-} from "@/lib/local-llm-settings";
+  fetchLlmConfig,
+  getLlmConfig,
+  getLlmConfigWithDefaults,
+  saveLlmConfig,
+} from "@/lib/llm-config";
+import { LOCAL_LLM_DEFAULTS } from "@/lib/local-llm-settings";
 
 interface LocalModelSettingsModalProps {
   open: boolean;
@@ -34,20 +32,29 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
 
   useEffect(() => {
     if (!open) return;
-    setBaseUrl(getLocalLlmBaseUrl());
-    setApiKey(getLocalLlmApiKey());
-    setModel(getLocalLlmModel());
+    const existing = getLlmConfig() ?? getLlmConfigWithDefaults();
+    setBaseUrl(existing.baseUrl);
+    setApiKey(existing.apiKey);
+    setModel(existing.model);
+    void fetchLlmConfig().then((cfg) => {
+      if (!cfg) return;
+      setBaseUrl(cfg.baseUrl);
+      setApiKey(cfg.apiKey);
+      setModel(cfg.model);
+    });
   }, [open]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!baseUrl.trim() || !model.trim() || !apiKey.trim()) {
       toast.error(t("localLlmSettings.errors.missing"));
       return;
     }
 
-    setLocalLlmBaseUrl(baseUrl.trim());
-    setLocalLlmApiKey(apiKey.trim());
-    setLocalLlmModel(model.trim());
+    await saveLlmConfig({
+      baseUrl: baseUrl.trim(),
+      apiKey: apiKey.trim(),
+      model: model.trim(),
+    });
     toast.success(t("localLlmSettings.toasts.saved"));
     onSaved?.();
     onOpenChange(false);

@@ -124,6 +124,7 @@ npm install
 ```bash
 cp .env.example .env.local
 ```
+> 本地数据将存储在 `data/wolfcha.db`（SQLite）。首次启动会自动从浏览器 localStorage 迁移历史数据。
 
 4.  **启动开发服务器**
 

@@ -124,6 +124,7 @@ Optional: create a local env file if you need TTS or other server features.
 ```bash
 cp .env.example .env.local
 ```
+> Local data is stored in `data/wolfcha.db` (SQLite). On first launch, localStorage data is migrated automatically.
 
 4.  **Start the development server**
 

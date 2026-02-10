@@ -1,4 +1,4 @@
-import { getLocalLlmApiKey, getLocalLlmBaseUrl, getLocalLlmModel } from "@/lib/local-llm-settings";
+import { getLlmConfigWithDefaults } from "@/lib/llm-config";
 import { type ModelRef } from "@/types/game";
 import { gameStatsTracker } from "@/hooks/useGameStats";
 import { gameSessionTracker } from "@/lib/game-session-tracker";
@@ -17,7 +17,8 @@ export interface LLMMessage {
 }
 
 export function resolveApiKeySource(model: string): ApiKeySource {
-  return getLocalLlmApiKey() ? "user" : "project";
+  const cfg = getLlmConfigWithDefaults();
+  return cfg.apiKey ? "user" : "project";
 }
 
 export interface ChatCompletionResponse {
@@ -375,9 +376,10 @@ export async function generateCompletion(
       ? Math.max(16, Math.floor(options.max_tokens))
       : undefined;
 
-  const baseUrl = getLocalLlmBaseUrl();
-  const apiKey = getLocalLlmApiKey();
-  const modelToUse = options.model || getLocalLlmModel();
+  const cfg = getLlmConfigWithDefaults();
+  const baseUrl = cfg.baseUrl;
+  const apiKey = cfg.apiKey;
+  const modelToUse = options.model || cfg.model;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -465,11 +467,12 @@ export async function generateCompletionBatch(
 ): Promise<BatchCompletionResult[]> {
   if (!Array.isArray(requests) || requests.length === 0) return [];
 
-  const baseUrl = getLocalLlmBaseUrl();
-  const apiKey = getLocalLlmApiKey();
+  const cfg = getLlmConfigWithDefaults();
+  const baseUrl = cfg.baseUrl;
+  const apiKey = cfg.apiKey;
   const resolvedRequests = requests.map((r) => ({
     ...r,
-    model: r.model || getLocalLlmModel(),
+    model: r.model || cfg.model,
   }));
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -524,9 +527,10 @@ export async function* generateCompletionStream(
       ? Math.max(16, Math.floor(options.max_tokens))
       : undefined;
 
-  const baseUrl = getLocalLlmBaseUrl();
-  const apiKey = getLocalLlmApiKey();
-  const modelToUse = options.model || getLocalLlmModel();
+  const cfg = getLlmConfigWithDefaults();
+  const baseUrl = cfg.baseUrl;
+  const apiKey = cfg.apiKey;
+  const modelToUse = options.model || cfg.model;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };

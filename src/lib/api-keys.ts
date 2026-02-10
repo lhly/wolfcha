@@ -1,13 +1,5 @@
-import {
-  clearLocalLlmSettings,
-  getLocalLlmApiKey,
-  getLocalLlmBaseUrl,
-  getLocalLlmModel,
-  setLocalLlmApiKey,
-  setLocalLlmBaseUrl,
-  setLocalLlmModel,
-  isLocalLlmConfigured,
-} from "@/lib/local-llm-settings";
+import { getLlmConfigWithDefaults, isLlmConfigured, saveLlmConfig } from "@/lib/llm-config";
+import { clearLocalLlmSettings } from "@/lib/local-llm-settings";
 
 const MINIMAX_API_KEY_STORAGE = "wolfcha_minimax_api_key";
 const MINIMAX_GROUP_ID_STORAGE = "wolfcha_minimax_group_id";
@@ -35,60 +27,68 @@ function writeStorage(key: string, value: string) {
 // ===== Local LLM Settings (OpenAI-compatible) =====
 
 export function getBaseUrl(): string {
-  return getLocalLlmBaseUrl();
+  return getLlmConfigWithDefaults().baseUrl;
 }
 
 export function setBaseUrl(value: string) {
-  setLocalLlmBaseUrl(value);
+  const cfg = getLlmConfigWithDefaults();
+  void saveLlmConfig({ ...cfg, baseUrl: value.trim() });
 }
 
 export function getApiKey(): string {
-  return getLocalLlmApiKey();
+  return getLlmConfigWithDefaults().apiKey;
 }
 
 export function setApiKey(value: string) {
-  setLocalLlmApiKey(value);
+  const cfg = getLlmConfigWithDefaults();
+  void saveLlmConfig({ ...cfg, apiKey: value.trim() });
 }
 
 export function getGeneratorModel(): string {
-  return getLocalLlmModel();
+  return getLlmConfigWithDefaults().model;
 }
 
 export function setGeneratorModel(model: string) {
-  setLocalLlmModel(model);
+  const cfg = getLlmConfigWithDefaults();
+  void saveLlmConfig({ ...cfg, model: model.trim() });
 }
 
 export function getSummaryModel(): string {
-  return getLocalLlmModel();
+  return getLlmConfigWithDefaults().model;
 }
 
 export function setSummaryModel(model: string) {
-  setLocalLlmModel(model);
+  const cfg = getLlmConfigWithDefaults();
+  void saveLlmConfig({ ...cfg, model: model.trim() });
 }
 
 export function getReviewModel(): string {
-  return getLocalLlmModel();
+  return getLlmConfigWithDefaults().model;
 }
 
 export function setReviewModel(model: string) {
-  setLocalLlmModel(model);
+  const cfg = getLlmConfigWithDefaults();
+  void saveLlmConfig({ ...cfg, model: model.trim() });
 }
 
 export function getSelectedModels(): string[] {
-  const model = getLocalLlmModel();
+  const model = getLlmConfigWithDefaults().model;
   return model ? [model] : [];
 }
 
 export function setSelectedModels(models: string[]) {
   if (models.length === 0) return;
-  setLocalLlmModel(models[0]);
+  const cfg = getLlmConfigWithDefaults();
+  void saveLlmConfig({ ...cfg, model: models[0].trim() });
 }
 
 export function isCustomKeyEnabled(): boolean {
-  return isLocalLlmConfigured();
+  return isLlmConfigured();
 }
 
 export function clearApiKeys() {
+  const cfg = getLlmConfigWithDefaults();
+  void saveLlmConfig({ ...cfg, apiKey: "" });
   clearLocalLlmSettings();
   if (!canUseStorage()) return;
   window.localStorage.removeItem(MINIMAX_API_KEY_STORAGE);
