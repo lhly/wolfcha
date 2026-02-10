@@ -108,6 +108,10 @@ check(
   readFile("src/hooks/useCustomCharacters.ts").includes("/api/custom-characters"),
   "custom characters should use API"
 );
+check(
+  exists("src/hooks/useLocalStorageMigration.ts"),
+  "Missing local storage migration hook"
+);
 
 if (exists("src/app/landing/LandingContent.tsx")) {
   const landing = readFile("src/app/landing/LandingContent.tsx");

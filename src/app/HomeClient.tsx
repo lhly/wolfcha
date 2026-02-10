@@ -36,6 +36,7 @@ import { useTranslations } from "next-intl";
 import { Provider, useAtom } from "jotai";
 import { BADGE_TRANSFER_TORN } from "@/lib/game-master";
 import { initLlmConfig, normalizeLlmConfig } from "@/lib/llm-config";
+import { useLocalStorageMigration } from "@/hooks/useLocalStorageMigration";
 
 // Components
 import { WelcomeScreen } from "@/components/game/WelcomeScreen";
@@ -141,6 +142,7 @@ type HomeClientProps = {
 };
 
 function HomeInner() {
+  useLocalStorageMigration();
   const t = useTranslations();
   const router = useRouter();
   const params = useParams();
