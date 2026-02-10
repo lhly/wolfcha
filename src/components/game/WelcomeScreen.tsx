@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { FingerprintSimple, PawPrint, Sparkle, Wrench, GearSix, UserCircle, GithubLogo, Star, EnvelopeSimple, Handshake, DotsThreeOutlineVertical, Users, UsersFour } from "@phosphor-icons/react";
+import { FingerprintSimple, PawPrint, Sparkle, Wrench, GearSix, GithubLogo, Star, EnvelopeSimple, Handshake, DotsThreeOutlineVertical, Users, UsersFour } from "@phosphor-icons/react";
 import { WerewolfIcon } from "@/components/icons/FlatIcons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,18 +12,12 @@ import { toast } from "sonner";
 import type { DevPreset, DifficultyLevel, Role, StartGameOptions } from "@/types/game";
 import { DevModeButton } from "@/components/DevTools";
 import { GameSetupModal } from "@/components/game/GameSetupModal";
-import { AuthModal } from "@/components/game/AuthModal";
-import { SharePanel } from "@/components/game/SharePanel";
-import { AccountModal } from "@/components/game/AccountModal";
-import { ResetPasswordModal } from "@/components/game/ResetPasswordModal";
-import { UserProfileModal } from "@/components/game/UserProfileModal";
-import { LowCreditModal, LOW_CREDIT_THRESHOLD } from "@/components/game/LowCreditModal";
 import { LocaleSwitcher } from "@/components/game/LocaleSwitcher";
 import { CustomCharacterModal } from "@/components/game/CustomCharacterModal";
+import { LocalModelSettingsModal } from "@/components/game/LocalModelSettingsModal";
 import { useCustomCharacters } from "@/hooks/useCustomCharacters";
-import { useCredits } from "@/hooks/useCredits";
 import { difficultyAtom, playerCountAtom } from "@/store/settings";
-import { hasDashscopeKey, hasZenmuxKey, isCustomKeyEnabled } from "@/lib/api-keys";
+import { getLocalLlmModel, isLocalLlmConfigured } from "@/lib/local-llm-settings";
 import { useAppLocale } from "@/i18n/useAppLocale";
 
 type SponsorCardProps = {
@@ -237,40 +231,22 @@ export function WelcomeScreen({
     return `mailto:${sponsorEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }, [sponsorEmail, t]);
 
-  const {
-    user,
-    session,
-    credits,
-    referralCode,
-    totalReferrals,
-    loading: creditsLoading,
-    consumeCredit,
-    signOut,
-    isPasswordRecovery,
-    clearPasswordRecovery,
-    fetchCredits,
-  } = useCredits();
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const paperRef = useRef<HTMLDivElement | null>(null);
   const sealButtonRef = useRef<HTMLButtonElement | null>(null);
   const isStartingRef = useRef(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
+  const [isModelSettingsOpen, setIsModelSettingsOpen] = useState(false);
   const [isSponsorOpen, setIsSponsorOpen] = useState(false);
   const [isGroupOpen, setIsGroupOpen] = useState(false);
   const [groupImgOk, setGroupImgOk] = useState<boolean | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCustomCharacterOpen, setIsCustomCharacterOpen] = useState(false);
-  const [isLowCreditOpen, setIsLowCreditOpen] = useState(false);
-  const [userProfileDefaultTab, setUserProfileDefaultTab] = useState<string | undefined>(undefined);
-  const selectionStorageKey = useMemo(() => {
-    return user?.id
-      ? `${CUSTOM_CHARACTER_SELECTION_STORAGE_KEY}:${user.id}`
-      : CUSTOM_CHARACTER_SELECTION_STORAGE_KEY;
-  }, [user?.id]);
+  const selectionStorageKey = CUSTOM_CHARACTER_SELECTION_STORAGE_KEY;
+  const [llmState, setLlmState] = useState(() => ({
+    configured: isLocalLlmConfigured(),
+    model: getLocalLlmModel(),
+  }));
 
   const readSelectionFromStorage = useCallback(() => {
     if (typeof window === "undefined") return new Set<string>();
@@ -284,13 +260,11 @@ export function WelcomeScreen({
       return new Set<string>();
     }
   }, [selectionStorageKey]);
-
-  const selectionStorageKeyRef = useRef<string | null>(null);
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(() =>
     readSelectionFromStorage()
   );
 
-  const customCharacters = useCustomCharacters(user);
+  const customCharacters = useCustomCharacters();
   const [difficulty, setDifficulty] = useAtom(difficultyAtom);
   const [playerCount, setPlayerCount] = useAtom(playerCountAtom);
   const [githubStars, setGithubStars] = useState<number | null>(null);
@@ -300,13 +274,7 @@ export function WelcomeScreen({
   }, [locale]);
 
   useEffect(() => {
-    selectionStorageKeyRef.current = selectionStorageKey;
-    setSelectedCharacterIds(readSelectionFromStorage());
-  }, [readSelectionFromStorage, selectionStorageKey]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
-    if (selectionStorageKeyRef.current !== selectionStorageKey) return;
     const ids = Array.from(selectedCharacterIds);
     window.localStorage.setItem(selectionStorageKey, JSON.stringify(ids));
   }, [selectedCharacterIds, selectionStorageKey]);
@@ -322,17 +290,22 @@ export function WelcomeScreen({
     }
   }, [customCharacters.characters, customCharacters.loading, selectedCharacterIds]);
 
-  const [customKeyEnabled, setCustomKeyEnabled] = useState(() => isCustomKeyEnabled());
+  const refreshLlmState = useCallback(() => {
+    setLlmState({
+      configured: isLocalLlmConfigured(),
+      model: getLocalLlmModel(),
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== "wolfcha_custom_key_enabled") return;
-      setCustomKeyEnabled(isCustomKeyEnabled());
+      if (!e.key || !e.key.startsWith("wolfcha_llm_")) return;
+      refreshLlmState();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [refreshLlmState]);
 
   // 调试面板状态
   const [mounted, setMounted] = useState(false);
@@ -419,20 +392,16 @@ export function WelcomeScreen({
   }, [playerCount, t]);
 
   const canConfirm = useMemo(() => {
-    return !!humanName.trim() && !isLoading && !isTransitioning && !creditsLoading;
-  }, [humanName, isLoading, isTransitioning, creditsLoading]);
+    return !!humanName.trim() && !isLoading && !isTransitioning && llmState.configured;
+  }, [humanName, isLoading, isTransitioning, llmState.configured]);
 
   const isAnyModalOpen =
     isSetupOpen ||
-    isAuthOpen ||
-    isShareOpen ||
-    isAccountOpen ||
-    isUserProfileOpen ||
+    isModelSettingsOpen ||
     isSponsorOpen ||
     isGroupOpen ||
     isMobileMenuOpen ||
     isCustomCharacterOpen ||
-    isLowCreditOpen ||
     isDevConsoleOpen;
 
   useEffect(() => {
@@ -530,16 +499,9 @@ export function WelcomeScreen({
       return;
     }
 
-    if (!user) {
-      setIsAuthOpen(true);
-      toast(t("welcome.toast.signInFirst"));
-      return;
-    }
-
-    const hasUserKey = customKeyEnabled && (hasZenmuxKey() || hasDashscopeKey());
-
-    if (!hasUserKey && credits !== null && credits <= LOW_CREDIT_THRESHOLD) {
-      setIsLowCreditOpen(true);
+    if (!llmState.configured) {
+      setIsModelSettingsOpen(true);
+      toast(t("welcome.toast.modelRequired"));
       return;
     }
 
@@ -576,96 +538,8 @@ export function WelcomeScreen({
         playerCount,
         customCharacters: selectedCustomChars,
       });
-    }, 800);
-
-    if (hasUserKey) {
       isStartingRef.current = false;
-      return;
-    }
-
-    void consumeCredit()
-      .then((consumed) => {
-        if (consumed) return;
-        // Credit deduction failed, abort the game and show share panel
-        setIsTransitioning(false);
-        onAbort?.();
-        setIsShareOpen(true);
-        toast.error(t("welcome.toast.creditFail.title"), { description: t("welcome.toast.creditFail.description") });
-      })
-      .catch(() => {
-        // Credit deduction failed, abort the game and show share panel
-        setIsTransitioning(false);
-        onAbort?.();
-        setIsShareOpen(true);
-        toast.error(t("welcome.toast.creditFail.title"), { description: t("welcome.toast.creditFail.description") });
-      })
-      .finally(() => {
-        isStartingRef.current = false;
-      });
-  };
-
-  const handleOpenPayAsYouGo = () => {
-    setUserProfileDefaultTab("payAsYouGo");
-    setIsUserProfileOpen(true);
-  };
-
-  const handleStartGameFromLowCreditModal = () => {
-    isStartingRef.current = true;
-
-    const seal = sealButtonRef.current;
-    if (seal) createParticles(seal);
-
-    setIsTransitioning(true);
-
-    window.setTimeout(() => {
-      const roles = devTab === "roles" && roleConfigValid ? (fixedRoles as Role[]) : undefined;
-      const preset = devTab === "preset" && devPreset ? (devPreset as DevPreset) : undefined;
-
-      const selectedCustomChars = customCharacters.characters
-        .filter(c => selectedCharacterIds.has(c.id))
-        .map(c => ({
-          id: c.id,
-          display_name: c.display_name,
-          gender: c.gender,
-          age: c.age,
-          mbti: c.mbti,
-          basic_info: c.basic_info,
-          style_label: c.style_label,
-          avatar_seed: c.avatar_seed,
-        }));
-
-      void onStart({
-        fixedRoles: roles,
-        devPreset: preset,
-        difficulty,
-        playerCount,
-        customCharacters: selectedCustomChars,
-      });
     }, 800);
-
-    const hasUserKey = customKeyEnabled && (hasZenmuxKey() || hasDashscopeKey());
-    if (hasUserKey) {
-      isStartingRef.current = false;
-      return;
-    }
-
-    void consumeCredit()
-      .then((consumed) => {
-        if (consumed) return;
-        setIsTransitioning(false);
-        onAbort?.();
-        setIsShareOpen(true);
-        toast.error(t("welcome.toast.creditFail.title"), { description: t("welcome.toast.creditFail.description") });
-      })
-      .catch(() => {
-        setIsTransitioning(false);
-        onAbort?.();
-        setIsShareOpen(true);
-        toast.error(t("welcome.toast.creditFail.title"), { description: t("welcome.toast.creditFail.description") });
-      })
-      .finally(() => {
-        isStartingRef.current = false;
-      });
   };
 
   const handleOpenGroup = () => {
@@ -713,42 +587,13 @@ export function WelcomeScreen({
           onAiVoiceEnabledChange={onAiVoiceEnabledChange}
           onAutoAdvanceDialogueEnabledChange={onAutoAdvanceDialogueEnabledChange}
         />
-        <AuthModal open={isAuthOpen} onOpenChange={setIsAuthOpen} />
-        <AccountModal open={isAccountOpen} onOpenChange={setIsAccountOpen} />
-        <UserProfileModal
-          open={isUserProfileOpen}
+        <LocalModelSettingsModal
+          open={isModelSettingsOpen}
           onOpenChange={(open) => {
-            setIsUserProfileOpen(open);
-            if (!open) setUserProfileDefaultTab(undefined);
+            setIsModelSettingsOpen(open);
+            if (!open) refreshLlmState();
           }}
-          email={user?.email}
-          credits={credits ?? undefined}
-          referralCode={referralCode}
-          totalReferrals={totalReferrals}
-          onChangePassword={() => setIsAccountOpen(true)}
-          onShareInvite={() => setIsShareOpen(true)}
-          onSignOut={signOut}
-          onCustomKeyEnabledChange={setCustomKeyEnabled}
-          onCreditsChange={fetchCredits}
-          defaultTab={userProfileDefaultTab}
-        />
-        <LowCreditModal
-          open={isLowCreditOpen}
-          onOpenChange={setIsLowCreditOpen}
-          credits={credits ?? 0}
-          onStartGame={handleStartGameFromLowCreditModal}
-          onOpenPayAsYouGo={handleOpenPayAsYouGo}
-        />
-        <ResetPasswordModal
-          open={isPasswordRecovery}
-          onOpenChange={(open) => !open && clearPasswordRecovery()}
-          onSuccess={clearPasswordRecovery}
-        />
-        <SharePanel
-          open={isShareOpen}
-          onOpenChange={setIsShareOpen}
-          referralCode={referralCode}
-          totalReferrals={totalReferrals}
+          onSaved={refreshLlmState}
         />
         <CustomCharacterModal
           open={isCustomCharacterOpen}
@@ -814,7 +659,6 @@ export function WelcomeScreen({
                 {t("welcome.sponsor.description")}
               </p>
               <ul className="list-disc pl-5 space-y-1 text-[var(--text-secondary)]">
-                <li>{t("welcome.sponsor.items.credits")}</li>
                 <li>{t("welcome.sponsor.items.media")}</li>
                 <li>{t("welcome.sponsor.items.collaboration")}</li>
                 <li>{t("welcome.sponsor.items.community")}</li>
@@ -870,33 +714,18 @@ export function WelcomeScreen({
                 <GearSix size={16} />
                 {t("welcome.settings")}
               </Button>
-              {user ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setIsUserProfileOpen(true);
-                  }}
-                >
-                  <UserCircle size={16} />
-                  {t("welcome.account.info")}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setIsAuthOpen(true);
-                  }}
-                >
-                  <UserCircle size={16} />
-                  {t("welcome.auth.signIn")}
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                className="justify-start"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsModelSettingsOpen(true);
+                }}
+              >
+                <Wrench size={16} />
+                {llmState.configured ? t("welcome.modelSettings.configured") : t("welcome.modelSettings.setup")}
+              </Button>
               <Button asChild variant="outline" className="justify-start">
                 <a
                   href="https://github.com/oil-oil/wolfcha"
@@ -992,44 +821,30 @@ export function WelcomeScreen({
               {t("welcome.group.title")}
             </Button>
 
-            {user ? (
-              <button
-                type="button"
-                onClick={() => setIsUserProfileOpen(true)}
-                className="hidden md:flex items-center gap-2 rounded-md border-2 border-[var(--border-color)] bg-[var(--bg-card)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
-                title={t("welcome.account.viewInfo")}
-              >
-                <UserCircle size={16} />
-                <span className="truncate max-w-[160px]">{user.email ?? t("userProfile.loggedIn")}</span>
-                {customKeyEnabled ? (
-                  <span className="opacity-70">{t("customKey.title")}</span>
-                ) : (
-                  <span className="opacity-70">{t("welcome.account.remaining", { count: creditsLoading ? "..." : (credits ?? 0) })}</span>
-                )}
-              </button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAuthOpen(true)}
-                className="h-8 text-xs gap-2"
-              >
-                <UserCircle size={16} />
-                {t("welcome.auth.signIn")}
-              </Button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsModelSettingsOpen(true)}
+              className="hidden md:flex items-center gap-2 rounded-md border-2 border-[var(--border-color)] bg-[var(--bg-card)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+              title={t("welcome.modelSettings.setup")}
+            >
+              <Wrench size={16} />
+              <span className="truncate max-w-[160px]">
+                {llmState.configured ? llmState.model : t("welcome.modelSettings.unset")}
+              </span>
+              <span className="opacity-70">
+                {llmState.configured ? t("welcome.modelSettings.configured") : t("welcome.modelSettings.setup")}
+              </span>
+            </button>
 
-            {user && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsUserProfileOpen(true)}
-                className="h-8 text-xs gap-2 md:hidden"
-              >
-                <UserCircle size={16} />
-                {t("welcome.account.info")}
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsModelSettingsOpen(true)}
+              className="h-8 text-xs gap-2 md:hidden"
+            >
+              <Wrench size={16} />
+              {t("welcome.modelSettings.setup")}
+            </Button>
 
             <Button
               type="button"
@@ -1236,26 +1051,24 @@ export function WelcomeScreen({
 
 
             {/* Custom Character Entry */}
-            {user && (
-              <button
-                type="button"
-                onClick={() => setIsCustomCharacterOpen(true)}
-                className="mt-6 mx-auto flex items-center gap-2 px-3 py-1.5 rounded-md border-2 border-dashed border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
-              >
-                <UsersFour size={14} />
-                <span>{t("customCharacter.entryButton")}</span>
-                {selectedCharacterIds.size > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-medium">
-                    {selectedCharacterIds.size}
-                  </span>
-                )}
-                {customCharacters.characters.length > 0 && selectedCharacterIds.size === 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-[var(--text-muted)]/20 text-[var(--text-muted)] text-[10px] font-medium">
-                    {customCharacters.characters.length}
-                  </span>
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsCustomCharacterOpen(true)}
+              className="mt-6 mx-auto flex items-center gap-2 px-3 py-1.5 rounded-md border-2 border-dashed border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
+            >
+              <UsersFour size={14} />
+              <span>{t("customCharacter.entryButton")}</span>
+              {selectedCharacterIds.size > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-medium">
+                  {selectedCharacterIds.size}
+                </span>
+              )}
+              {customCharacters.characters.length > 0 && selectedCharacterIds.size === 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-[var(--text-muted)]/20 text-[var(--text-muted)] text-[10px] font-medium">
+                  {customCharacters.characters.length}
+                </span>
+              )}
+            </button>
 
             <div className="mt-4 flex flex-col items-center gap-3">
               <div className="wc-seal-hint">

@@ -39,12 +39,12 @@ Thanks to the growing context windows and instruction-following capabilities of 
 
 Every conversation is generated in real-time, full of unpredictability and fun.
 
-### 2. AI Model Arena
-**This isn't just Werewolf — it's a battleground for AI models.**
+### 2. Bring Your Own AI Model
+**Configure any OpenAI-compatible endpoint with your own API key.**
 
-We've integrated multiple top AI models to compete against each other. After each game, you can see which model powered each character. It's a hidden "Turing test" — observe which model reasons sharply, which one seems "adorably clueless," and which one sounds the most human.
+Wolfcha now runs locally with a BaseUrl + API Key + Model you provide. Multi‑model “arena” support can be added later; for now, it’s single‑model gameplay with your chosen endpoint.
 
-Current built-in models (subject to project configuration):
+Example models you can use (depending on your provider):
 *   **DeepSeek V3.2**
 *   **Qwen3-235B-A22B**
 *   **Kimi K2**
@@ -90,7 +90,7 @@ Built with modern web technologies:
 *   **Editor**: [Tiptap](https://tiptap.dev/) (For rich text interactions)
 *   **Animations**: [Framer Motion](https://www.framer.com/motion/)
 *   **Avatar Generation**: [DiceBear](https://www.dicebear.com/) (Notionists style)
-*   **AI Integration**: [ZenMux](https://zenmux.ai/invite/DMMBVZ) (Unified interface for LLMs)
+*   **AI Integration**: OpenAI-compatible endpoints (bring your own BaseUrl + API key)
 
 ## 🚀 Local Development
 
@@ -113,9 +113,9 @@ pnpm install
 npm install
 ```
 
-3.  **Configure environment variables**
+3.  **Configure model settings**
 
-You'll need to set up API keys (ZenMux, etc.) for full functionality. Refer to `.env.example` and create your `.env.local`.
+Start the app, open **Model Settings**, then fill in your **BaseUrl**, **API Key**, and **Model** (OpenAI‑compatible).
 
 4.  **Start the development server**
 

@@ -41,12 +41,12 @@
 
 每一局的对话都是实时生成的，充满了不确定性和趣味性。
 
-### 2. 大模型赛博斗蛐蛐 (Model Arena)
-**这不仅是狼人杀，更是一场模型能力的竞技场。**
+### 2. 自带模型配置 (Bring Your Own Model)
+**使用 OpenAI-compatible 接口，填入 BaseUrl + API Key + Model 即可开玩。**
 
-我们在游戏中接入了多款大模型，让它们同台竞技。游戏结束后，你可以看到每个角色背后对应的模型。这是一场隐藏的“图灵测试”——你可以观察在这个复杂的博弈场景中，哪个模型逻辑严密，哪个模型表现得“蠢萌”，又是哪个模型说话最有人味儿。
+当前版本改为本地配置单模型模式，多模型“赛博斗蛐蛐”可以在后续再扩展。
 
-当前内置模型（以项目内配置为准）：
+可用模型示例（取决于你的提供方）：
 *   **DeepSeek V3.2**
 *   **Qwen3-235B-A22B**
 *   **Kimi K2**
@@ -92,7 +92,7 @@
 *   **Editor**: [Tiptap](https://tiptap.dev/) (For rich text interactions)
 *   **Animations**: [Framer Motion](https://www.framer.com/motion/)
 *   **Avatar Generation**: [DiceBear](https://www.dicebear.com/) (Notionists style)
-*   **AI Integration**: [ZenMux](https://zenmux.ai/invite/DMMBVZ) (Unified interface for LLMs)
+*   **AI Integration**: OpenAI-compatible 接口（自带 BaseUrl + API Key）
 
 ## 🚀 本地运行
 
@@ -115,9 +115,9 @@ pnpm install
 npm install
 ```
 
-3.  **配置环境变量**
+3.  **配置模型设置**
 
-你需要配置相应的 API Keys (ZenMux 等) 才能运行完整功能。请参考 `.env.example` 并创建 `.env.local`。
+启动应用后在「模型设置」里填写 **BaseUrl / API Key / Model**（OpenAI-compatible）。
 
 4.  **启动开发服务器**
 

@@ -46,5 +46,10 @@ ai-logs.jsonl
 # windsurf rules (local only)
 .windsurf/rules/renewlog.md
 
+# local planning artifacts
+task_plan.md
+findings.md
+progress.md
+
 # git worktrees
 .worktrees/

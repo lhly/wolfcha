@@ -36,7 +36,7 @@
     },
     "mobileMenu": {
       "title": "快捷操作",
-      "description": "在这里快速进入设置与账号信息。",
+      "description": "在这里快速进入设置与模型配置。",
       "more": "更多操作"
     },
     "account": {
@@ -47,6 +47,11 @@
     },
     "auth": {
       "signIn": "登录/注册"
+    },
+    "modelSettings": {
+      "setup": "模型设置",
+      "configured": "已配置",
+      "unset": "未配置"
     },
     "github": {
       "title": "GitHub 项目"
@@ -63,7 +68,7 @@
       "subtitle": "你的支持会直接帮助 Wolfcha 跑得更稳、让更多人可以免费玩到。",
       "description": "Wolfcha 是一个公益性质的 AI 狼人杀项目。我们把成本主要花在模型调用、语音合成、服务器与内容生产上。如果你愿意帮我们一把，无论支持多少、以什么形式，我们都会非常感激。",
       "items": {
-        "credits": "模型额度 / 算力 / 服务器资源",
+        "credits": "模型算力 / 服务器资源",
         "media": "语音、音效、立绘等素材支持",
         "collaboration": "设计、产品、运营协作与建议",
         "community": "渠道与社区传播（转发也很有帮助）"
@@ -82,7 +87,7 @@
       "copySuccess": "已复制邮箱",
       "copyFallback": "邮箱地址",
       "mailSubject": "Wolfcha 赞助合作",
-      "mailBody": "你好，我对 Wolfcha 项目很感兴趣，希望能够提供以下支持：\n\n-（模型额度/算力）\n-（语音/音效资源）\n-（设计/产品协作）\n-（其他）\n\n我的联系方式：\n\n"
+      "mailBody": "你好，我对 Wolfcha 项目很感兴趣，希望能够提供以下支持：\n\n-（模型算力/服务器资源）\n-（语音/音效资源）\n-（设计/产品协作）\n-（其他）\n\n我的联系方式：\n\n"
     },
     "settings": "设置",
     "tutorial": "玩法教学",
@@ -111,6 +116,7 @@
     },
     "toast": {
       "signInFirst": "请先登录或注册",
+      "modelRequired": "请先配置模型 BaseUrl 与 API Key",
       "noCredits": {
         "title": "额度不足",
         "description": "分享邀请可获得更多额度。"
@@ -2009,7 +2015,7 @@
       "saved": "已保存 API Key",
       "savedDesc": "仅保存在当前浏览器",
       "validateFailed": "验证失败",
-      "validateFailedDesc": "请检查当前API Key 是否填写错误或是否有充足额度。",
+      "validateFailedDesc": "请检查当前 API Key 是否填写错误或是否有充足配额。",
       "cleared": "已清除 API Key"
     }
   },
@@ -2084,6 +2090,33 @@
       "importFailed": "导入失败",
       "copied": "已复制到剪贴板",
       "copyFailed": "复制失败"
+    }
+  },
+  "localLlmSettings": {
+    "title": "本地模型设置",
+    "description": "输入 OpenAI-compatible BaseUrl、API Key 与模型名称，用于本地游戏。",
+    "fields": {
+      "baseUrl": "BaseUrl",
+      "apiKey": "API Key",
+      "model": "Model"
+    },
+    "placeholders": {
+      "apiKey": "sk-..."
+    },
+    "actions": {
+      "showKey": "显示密钥",
+      "hideKey": "隐藏密钥",
+      "test": "测试连接",
+      "testing": "测试中...",
+      "save": "保存"
+    },
+    "errors": {
+      "missing": "BaseUrl、API Key 与 Model 不能为空"
+    },
+    "toasts": {
+      "saved": "已保存模型设置",
+      "testSuccess": "连接测试成功",
+      "testFail": "连接测试失败"
     }
   },
   "lowCreditModal": {

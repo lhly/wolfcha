@@ -10,30 +10,33 @@ type VoteBatchRequest = {
   reasoning?: { enabled: boolean; effort?: "minimal" | "low" | "medium" | "high"; max_tokens?: number };
   reasoning_effort?: "minimal" | "low" | "medium" | "high";
   response_format?: unknown;
-  provider?: "zenmux" | "dashscope";
+};
+
+type VoteBatchBody = {
+  baseUrl?: string;
+  apiKey?: string;
+  requests?: VoteBatchRequest[];
 };
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const requests = Array.isArray(body?.requests) ? (body.requests as VoteBatchRequest[]) : [];
+    const body = (await request.json()) as VoteBatchBody;
+    const requests = Array.isArray(body?.requests) ? body.requests : [];
     if (requests.length === 0) {
       return NextResponse.json({ results: [] });
     }
 
-    const headerApiKey = request.headers.get("x-zenmux-api-key")?.trim();
-    const headerDashscopeKey = request.headers.get("x-dashscope-api-key")?.trim();
     const origin = request.nextUrl.origin;
-
     const chatRequests = requests.map(({ voterId: _voterId, ...payload }) => payload);
+
     const chatResponse = await fetch(`${origin}/api/chat`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(headerApiKey ? { "X-Zenmux-Api-Key": headerApiKey } : {}),
-        ...(headerDashscopeKey ? { "X-Dashscope-Api-Key": headerDashscopeKey } : {}),
-      },
-      body: JSON.stringify({ requests: chatRequests }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: body.baseUrl,
+        apiKey: body.apiKey,
+        requests: chatRequests,
+      }),
     });
 
     if (!chatResponse.ok) {

@@ -1,5 +1,5 @@
-import { getDashscopeApiKey, getZenmuxApiKey, isCustomKeyEnabled } from "@/lib/api-keys";
-import { ALL_MODELS, AVAILABLE_MODELS, type ModelRef } from "@/types/game";
+import { getLocalLlmApiKey, getLocalLlmBaseUrl, getLocalLlmModel } from "@/lib/local-llm-settings";
+import { type ModelRef } from "@/types/game";
 import { gameStatsTracker } from "@/hooks/useGameStats";
 import { gameSessionTracker } from "@/lib/game-session-tracker";
 
@@ -16,36 +16,9 @@ export interface LLMMessage {
   reasoning_details?: unknown;
 }
 
-type Provider = "zenmux" | "dashscope";
-
-function getProviderForModel(model: string): Provider {
-   const modelRef =
-     ALL_MODELS.find((ref) => ref.model === model) ??
-     AVAILABLE_MODELS.find((ref) => ref.model === model);
-   return modelRef?.provider ?? "zenmux";
- }
-
-// When using built-in keys (custom disabled), only models in AVAILABLE_MODELS
-// are allowed; the server rejects non-AVAILABLE models without x-zenmux-api-key.
-// Game state may contain modelRef from ALL_MODELS (e.g. from a game started with
-// custom key on). Map to an AVAILABLE model to avoid "此模型需要您提供 Zenmux API Key".
-function resolveModelForBuiltin(model: string): string {
-  if (AVAILABLE_MODELS.some((r) => r.model === model)) return model;
-  const m =
-    AVAILABLE_MODELS.find((r) => r.provider === "zenmux") ?? AVAILABLE_MODELS[0];
-  return m?.model ?? model;
-}
-
 export function resolveApiKeySource(model: string): ApiKeySource {
-   const customEnabled = isCustomKeyEnabled();
-   if (!customEnabled) return "project";
-
-   const provider = getProviderForModel(model);
-   if (provider === "dashscope") {
-     return getDashscopeApiKey() ? "user" : "project";
-   }
-   return getZenmuxApiKey() ? "user" : "project";
- }
+  return getLocalLlmApiKey() ? "user" : "project";
+}
 
 export interface ChatCompletionResponse {
   id: string;
@@ -402,26 +375,16 @@ export async function generateCompletion(
       ? Math.max(16, Math.floor(options.max_tokens))
       : undefined;
 
-  const customEnabled = isCustomKeyEnabled();
-  const headerApiKey = customEnabled ? getZenmuxApiKey() : "";
-  const dashscopeApiKey = customEnabled ? getDashscopeApiKey() : "";
-  const modelToUse = customEnabled
-    ? options.model
-    : resolveModelForBuiltin(options.model);
+  const baseUrl = getLocalLlmBaseUrl();
+  const apiKey = getLocalLlmApiKey();
+  const modelToUse = options.model || getLocalLlmModel();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (headerApiKey) {
-    headers["X-Zenmux-Api-Key"] = headerApiKey;
-  }
-  if (dashscopeApiKey) {
-    headers["X-Dashscope-Api-Key"] = dashscopeApiKey;
-  }
 
   console.log("[LLM] generateCompletion:", {
-    customEnabled,
-    hasZenmuxKey: !!headerApiKey,
-    hasDashscopeKey: !!dashscopeApiKey,
+    baseUrl,
+    hasApiKey: !!apiKey,
     model: modelToUse,
   });
 
@@ -433,6 +396,8 @@ export async function generateCompletion(
         ...headers,
       },
       body: JSON.stringify({
+        baseUrl,
+        apiKey,
         model: modelToUse,
         messages: options.messages,
         temperature: options.temperature ?? 0.7,
@@ -500,28 +465,22 @@ export async function generateCompletionBatch(
 ): Promise<BatchCompletionResult[]> {
   if (!Array.isArray(requests) || requests.length === 0) return [];
 
-  const customEnabled = isCustomKeyEnabled();
-  const headerApiKey = customEnabled ? getZenmuxApiKey() : "";
-  const dashscopeApiKey = customEnabled ? getDashscopeApiKey() : "";
-  const resolvedRequests = customEnabled
-    ? requests
-    : requests.map((r) => ({ ...r, model: resolveModelForBuiltin(r.model) }));
+  const baseUrl = getLocalLlmBaseUrl();
+  const apiKey = getLocalLlmApiKey();
+  const resolvedRequests = requests.map((r) => ({
+    ...r,
+    model: r.model || getLocalLlmModel(),
+  }));
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (headerApiKey) {
-    headers["X-Zenmux-Api-Key"] = headerApiKey;
-  }
-  if (dashscopeApiKey) {
-    headers["X-Dashscope-Api-Key"] = dashscopeApiKey;
-  }
 
   const response = await fetchWithRetry(
     "/api/chat",
     {
       method: "POST",
       headers,
-      body: JSON.stringify({ requests: resolvedRequests }),
+      body: JSON.stringify({ baseUrl, apiKey, requests: resolvedRequests }),
     },
     3
   );
@@ -565,21 +524,12 @@ export async function* generateCompletionStream(
       ? Math.max(16, Math.floor(options.max_tokens))
       : undefined;
 
-  const customEnabled = isCustomKeyEnabled();
-  const headerApiKey = customEnabled ? getZenmuxApiKey() : "";
-  const dashscopeApiKey = customEnabled ? getDashscopeApiKey() : "";
-  const modelToUse = customEnabled
-    ? options.model
-    : resolveModelForBuiltin(options.model);
+  const baseUrl = getLocalLlmBaseUrl();
+  const apiKey = getLocalLlmApiKey();
+  const modelToUse = options.model || getLocalLlmModel();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (headerApiKey) {
-    headers["X-Zenmux-Api-Key"] = headerApiKey;
-  }
-  if (dashscopeApiKey) {
-    headers["X-Dashscope-Api-Key"] = dashscopeApiKey;
-  }
 
   const response = await fetchWithRetry(
     "/api/chat",
@@ -589,6 +539,8 @@ export async function* generateCompletionStream(
         ...headers,
       },
       body: JSON.stringify({
+        baseUrl,
+        apiKey,
         model: modelToUse,
         messages: options.messages,
         temperature: options.temperature ?? 0.7,

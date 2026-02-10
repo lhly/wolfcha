@@ -497,8 +497,8 @@ export function LandingContent() {
     {
       q: isZh ? "如何查看我的游戏数据？" : "How do I view my game data?",
       a: isZh
-        ? "点击头像进入个人中心，可以查看积分、邀请码、已邀请人数等信息。还可以配置自定义 API Key 使用更多模型。"
-        : "Click your avatar to access the profile center, where you can view credits, referral code, and referral count. You can also configure custom API keys to use more models.",
+        ? "游戏进度与自定义角色保存在浏览器本地。如需清理，可在浏览器设置中清除本站数据，或重新配置模型设置。"
+        : "Your game progress and custom roles are saved locally in your browser. To reset, clear this site's data in your browser settings or reconfigure the model settings.",
     },
     {
       q: isZh ? "支持哪些语言？" : "What languages are supported?",

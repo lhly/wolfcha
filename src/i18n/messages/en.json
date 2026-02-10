@@ -36,7 +36,7 @@
     },
     "mobileMenu": {
       "title": "Quick Actions",
-      "description": "Quickly access settings and account info.",
+      "description": "Quickly access settings and model configuration.",
       "more": "More actions"
     },
     "account": {
@@ -47,6 +47,11 @@
     },
     "auth": {
       "signIn": "Sign In / Sign Up"
+    },
+    "modelSettings": {
+      "setup": "Model settings",
+      "configured": "Configured",
+      "unset": "Not set"
     },
     "github": {
       "title": "GitHub Project"
@@ -63,7 +68,7 @@
       "subtitle": "Your support keeps Wolfcha running smoothly and free for everyone.",
       "description": "Wolfcha is a community-driven AI Werewolf project. Our costs go toward AI models, voice synthesis, servers, and content creation. Any support—big or small—means the world to us.",
       "items": {
-        "credits": "Model credits / compute / server resources",
+        "credits": "Model compute / server resources",
         "media": "Voice, sound effects, character art assets",
         "collaboration": "Design, product, or operations collaboration",
         "community": "Community and channel sharing"
@@ -82,7 +87,7 @@
       "copySuccess": "Email copied",
       "copyFallback": "Email address",
       "mailSubject": "Wolfcha sponsorship inquiry",
-      "mailBody": "Hi, I'm interested in supporting Wolfcha and would like to offer help in the following ways:\n\n- (Model credits / compute)\n- (Voice / SFX assets)\n- (Design / product collaboration)\n- (Other)\n\nMy contact info:\n\n"
+      "mailBody": "Hi, I'm interested in supporting Wolfcha and would like to offer help in the following ways:\n\n- (Model compute / server resources)\n- (Voice / SFX assets)\n- (Design / product collaboration)\n- (Other)\n\nMy contact info:\n\n"
     },
     "settings": "Settings",
     "tutorial": "How to play",
@@ -111,6 +116,7 @@
     },
     "toast": {
       "signInFirst": "Please sign in or register first.",
+      "modelRequired": "Please configure BaseUrl and API Key first.",
       "noCredits": {
         "title": "Not enough credits",
         "description": "Share an invite to earn more credits."
@@ -2009,7 +2015,7 @@
       "saved": "API Key saved",
       "savedDesc": "Stored locally in this browser only",
       "validateFailed": "Validation failed",
-      "validateFailedDesc": "Check if the API Key is correct or has sufficient credits.",
+      "validateFailedDesc": "Check if the API Key is correct or has sufficient quota.",
       "cleared": "API Key cleared"
     }
   },
@@ -2084,6 +2090,33 @@
       "importFailed": "Import failed",
       "copied": "Copied to clipboard",
       "copyFailed": "Copy failed"
+    }
+  },
+  "localLlmSettings": {
+    "title": "Local model settings",
+    "description": "Provide an OpenAI-compatible BaseUrl, API Key, and model name for local play.",
+    "fields": {
+      "baseUrl": "BaseUrl",
+      "apiKey": "API Key",
+      "model": "Model"
+    },
+    "placeholders": {
+      "apiKey": "sk-..."
+    },
+    "actions": {
+      "showKey": "Show key",
+      "hideKey": "Hide key",
+      "test": "Test connection",
+      "testing": "Testing...",
+      "save": "Save"
+    },
+    "errors": {
+      "missing": "BaseUrl, API Key, and Model are required"
+    },
+    "toasts": {
+      "saved": "Settings saved",
+      "testSuccess": "Connection test succeeded",
+      "testFail": "Connection test failed"
     }
   },
   "lowCreditModal": {

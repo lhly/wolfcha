@@ -1,15 +1,7 @@
 import { generateJSON, generateCompletionStream, stripMarkdownCodeFences } from "./llm";
 import { LLMJSONParser } from "ai-json-fixer";
-import {
-  ALL_MODELS,
-  GENERATOR_MODEL,
-  PLAYER_MODELS,
-  filterPlayerModels,
-  type GameScenario,
-  type ModelRef,
-  type Persona,
-} from "@/types/game";
-import { getGeneratorModel, getSelectedModels, hasDashscopeKey, hasZenmuxKey, isCustomKeyEnabled } from "@/lib/api-keys";
+import { GENERATOR_MODEL, type GameScenario, type ModelRef, type Persona } from "@/types/game";
+import { getGeneratorModel, isCustomKeyEnabled } from "@/lib/api-keys";
 import { aiLogger } from "./ai-logger";
 import { AI_TEMPERATURE, GAME_TEMPERATURE } from "./ai-config";
 import { getRandomScenario } from "./scenarios";
@@ -49,62 +41,15 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export const sampleModelRefs = (count: number): ModelRef[] => {
-  // Default pool when custom key is not enabled
-  const defaultPool =
-    PLAYER_MODELS.length > 0
-      ? PLAYER_MODELS
-      : [{ provider: "zenmux" as const, model: GENERATOR_MODEL }];
-
-  const pool = (() => {
-    if (!isCustomKeyEnabled()) return defaultPool;
-
-    // When custom key is enabled, use ALL_MODELS as the full available pool
-    const fullPool = ALL_MODELS.length > 0 ? ALL_MODELS : defaultPool;
-
-    const allowedProviders = new Set<ModelRef["provider"]>();
-    if (hasZenmuxKey()) allowedProviders.add("zenmux");
-    if (hasDashscopeKey()) allowedProviders.add("dashscope");
-    if (allowedProviders.size === 0) return defaultPool;
-
-    // Filter by allowed providers, then exclude non-player models
-    const allowedPool = filterPlayerModels(
-      fullPool.filter((ref) => allowedProviders.has(ref.provider))
-    );
-    if (allowedPool.length === 0) return defaultPool;
-
-    // Filter by user's selected models - STRICTLY respect user selection
-    const selectedModels = getSelectedModels();
-    if (selectedModels.length === 0) return allowedPool;
-    
-    // Only use models the user explicitly selected
-    const selectedPool = allowedPool.filter((ref) => selectedModels.includes(ref.model));
-    
-    // If user selected models but none are in allowedPool, try to find them in fullPool
-    // This handles cases where user selected models from a different provider
-    if (selectedPool.length === 0) {
-      const fullSelectedPool = filterPlayerModels(
-        fullPool.filter((ref) => selectedModels.includes(ref.model) && allowedProviders.has(ref.provider))
-      );
-      if (fullSelectedPool.length > 0) return fullSelectedPool;
-      
-      // Last resort: only return models that user actually selected, even if empty
-      // This prevents using models the user didn't choose
-      console.warn("[sampleModelRefs] User selected models not found in allowed pool:", selectedModels);
-    }
-    
-    // Return only user-selected models, never fall back to all models
-    return selectedPool.length > 0 ? selectedPool : allowedPool.slice(0, 1);
-  })();
+  const model = getGeneratorModel() || GENERATOR_MODEL;
+  const pool: ModelRef[] = [{ provider: "zenmux" as const, model }];
 
   if (!Number.isFinite(count) || count <= 0) return [];
+  if (count <= pool.length) return pool.slice(0, count);
 
-  if (count <= pool.length) {
-    return shuffleArray(pool).slice(0, count);
-  }
-
-  const out = shuffleArray(pool);
+  const out = [...pool];
   while (out.length < count) {
-    out.push(pool[Math.floor(Math.random() * pool.length)]);
+    out.push(pool[0]);
   }
   return out;
 };
@@ -652,7 +597,7 @@ export async function generateCharacters(
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      console.log(`[character-gen] Attempt ${attempt + 1}/2, customKeyEnabled: ${isCustomKeyEnabled()}, hasZenmux: ${hasZenmuxKey()}, hasDashscope: ${hasDashscopeKey()}`);
+      console.log(`[character-gen] Attempt ${attempt + 1}/2, configured: ${isCustomKeyEnabled()}`);
       return await runOnce();
     } catch (error) {
       lastError = error;
