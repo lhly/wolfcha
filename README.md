@@ -119,6 +119,8 @@ npm install
 
 Start the app, open **Model Settings**, then fill in your **BaseUrl**, **API Key**, and **Model** (OpenAI‑compatible).
 
+> Local data is stored in `data/wolfcha.db` (SQLite). On first launch, localStorage data is migrated automatically.
+
 4.  **Start the development server**
 
 ```bash

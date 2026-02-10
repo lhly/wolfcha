@@ -119,6 +119,8 @@ npm install
 
 启动应用后在「模型设置」里填写 **BaseUrl / API Key / Model**（OpenAI-compatible）。
 
+> 本地数据将存储在 `data/wolfcha.db`（SQLite）。首次启动会自动从浏览器 localStorage 迁移历史数据。
+
 4.  **启动开发服务器**
 
 ```bash
