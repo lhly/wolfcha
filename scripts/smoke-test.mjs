@@ -42,6 +42,8 @@ check(
   "Missing LocalModelSettingsModal component."
 );
 
+check(exists("src/lib/sqlite.ts"), "Missing sqlite helper.");
+
 if (exists("src/app/api/chat/route.ts")) {
   const chatRoute = readFile("src/app/api/chat/route.ts");
   check(
