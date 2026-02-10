@@ -8,21 +8,15 @@ import { atomWithStorage } from "jotai/utils";
 import type { GameState, Phase, Player, Role } from "@/types/game";
 import type { GameAnalysisData } from "@/types/analysis";
 import { createInitialGameState } from "@/lib/game-master";
+import {
+  clearPersistedGameState as clearPersistedGameStateRemote,
+  savePersistedGameState,
+} from "@/lib/game-state-storage";
 import { getI18n } from "@/i18n/translator";
 
 // ============ 游戏状态持久化配置 ============
 
-const GAME_STATE_STORAGE_KEY = "wolfcha.game_state";
 const GAME_STATE_VERSION = 1;
-// 24 hours in milliseconds - states older than this won't be restored
-const GAME_STATE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
-interface PersistedGameState {
-  version: number;
-  state: GameState;
-  savedAt: number;
-}
-
 // Phases that indicate a game is in progress (for UI display purposes)
 const IN_PROGRESS_PHASES: Phase[] = [
   "NIGHT_START",
@@ -301,83 +295,7 @@ function normalizeGameState(state: GameState): GameState {
  * Returns initial state if no valid saved state exists
  */
 function loadPersistedGameState(): GameState {
-  const initial = createInitialGameState();
-  
-  // SSR safety check
-  if (typeof window === "undefined") {
-    return initial;
-  }
-  
-  try {
-    const raw = localStorage.getItem(GAME_STATE_STORAGE_KEY);
-    if (!raw) return initial;
-    
-    const parsed: PersistedGameState = JSON.parse(raw);
-    
-    // Version check for future migrations
-    if (parsed.version !== GAME_STATE_VERSION) {
-      console.warn(`[wolfcha] Game state version mismatch: ${parsed.version} !== ${GAME_STATE_VERSION}`);
-      localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-      return initial;
-    }
-    
-    // Check if the saved state is too old
-    const age = Date.now() - parsed.savedAt;
-    if (age > GAME_STATE_MAX_AGE_MS) {
-      console.info("[wolfcha] Saved game state expired, starting fresh");
-      localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-      return initial;
-    }
-    
-    // Validate the state structure
-    if (!isValidGameState(parsed.state)) {
-      console.warn("[wolfcha] Invalid saved game state structure");
-      localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-      return initial;
-    }
-    
-    // Only restore if game is in progress
-    if (!isGameInProgress(parsed.state)) {
-      console.info("[wolfcha] Saved game not in progress, starting fresh");
-      localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-      return initial;
-    }
-    
-    // Players must exist for a valid in-progress game
-    if (parsed.state.players.length === 0) {
-      console.warn("[wolfcha] Saved game has no players");
-      localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-      return initial;
-    }
-    
-    // 细粒度恢复：如果当前阶段的动作未完成，回退到上一个稳定点
-    const savedState = normalizeGameState(parsed.state);
-    const restorePhase = getRestorePhase(savedState);
-    
-    if (restorePhase !== savedState.phase) {
-      console.info(`[wolfcha] Phase ${savedState.phase} action incomplete, restoring to ${restorePhase}`);
-      // 回退 phase，但保留已完成的 nightActions
-      const restoredState = {
-        ...savedState,
-        phase: restorePhase,
-      };
-      console.info(`[wolfcha] Restoring game from ${new Date(parsed.savedAt).toLocaleString()} at phase ${restorePhase} (rolled back from ${savedState.phase})`);
-      return restoredState;
-    }
-    
-    console.info(`[wolfcha] Restoring game from ${new Date(parsed.savedAt).toLocaleString()} at phase ${parsed.state.phase}`);
-    return savedState;
-    
-  } catch (error) {
-    console.error("[wolfcha] Failed to load saved game state:", error);
-    // Clear potentially corrupted data
-    try {
-      localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-    } catch {
-      // Ignore errors when clearing
-    }
-    return initial;
-  }
+  return createInitialGameState();
 }
 
 // 发言阶段 throttle：避免流式消息追加导致频繁 JSON 序列化
@@ -466,12 +384,7 @@ function doSaveGameState(state: GameState): void {
   }
   
   try {
-    const persisted: PersistedGameState = {
-      version: GAME_STATE_VERSION,
-      state,
-      savedAt: Date.now(),
-    };
-    localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(persisted));
+    void savePersistedGameState(state, GAME_STATE_VERSION);
     console.debug(`[wolfcha] Saved checkpoint at ${state.phase}, day ${state.day}`);
   } catch (error) {
     console.error("[wolfcha] Failed to save game state:", error);
@@ -482,14 +395,13 @@ function doSaveGameState(state: GameState): void {
  * Clear persisted game state from localStorage
  */
 export function clearPersistedGameState(): void {
-  if (typeof window === "undefined") return;
   // Clear any pending throttled save
   if (pendingSpeechSaveTimer !== null) {
     clearTimeout(pendingSpeechSaveTimer);
     pendingSpeechSaveTimer = null;
   }
   try {
-    localStorage.removeItem(GAME_STATE_STORAGE_KEY);
+    void clearPersistedGameStateRemote();
   } catch {
     // Ignore errors
   }

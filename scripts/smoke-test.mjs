@@ -100,6 +100,10 @@ check(
   "page.tsx should be server component."
 );
 check(exists("src/app/HomeClient.tsx"), "Missing HomeClient.tsx.");
+check(
+  readFile("src/store/game-machine.ts").includes("game-state-storage"),
+  "game-machine should use sqlite storage helper."
+);
 
 if (exists("src/app/landing/LandingContent.tsx")) {
   const landing = readFile("src/app/landing/LandingContent.tsx");
