@@ -38,6 +38,7 @@ import { buildGenshinModelRefs, generateCharacters, generateGenshinModeCharacter
 import { getSystemMessages, getUiText } from "@/lib/game-texts";
 import { getRandomScenario } from "@/lib/scenarios";
 import { DELAY_CONFIG, getRoleName } from "@/lib/game-constants";
+import { saveGameHistory } from "@/lib/game-history";
 import { generateUUID } from "@/lib/utils";
 import {
   AsyncFlowController,
@@ -467,6 +468,7 @@ export function useGameLogic() {
       setIsWaitingForAI(false);
       setWaitingForNextRound(false);
       await endGame(state, winner);
+      void saveGameHistory(gameStateRef.current, winner);
     },
     [clearDialogue, clearSpeechQueue, endGame, setIsWaitingForAI, setWaitingForNextRound]
   );

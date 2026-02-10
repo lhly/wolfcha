@@ -57,8 +57,8 @@ if (exists("src/app/api/chat/route.ts")) {
 if (exists("src/hooks/useCustomCharacters.ts")) {
   const customCharacters = readFile("src/hooks/useCustomCharacters.ts");
   check(
-    customCharacters.includes("wolfcha_custom_characters"),
-    "Custom characters should use localStorage key wolfcha_custom_characters."
+    customCharacters.includes("/api/custom-characters"),
+    "Custom characters should use API endpoint."
   );
 } else {
   errors.push("Missing useCustomCharacters.ts.");
@@ -103,6 +103,10 @@ check(exists("src/app/HomeClient.tsx"), "Missing HomeClient.tsx.");
 check(
   readFile("src/store/game-machine.ts").includes("game-state-storage"),
   "game-machine should use sqlite storage helper."
+);
+check(
+  readFile("src/hooks/useCustomCharacters.ts").includes("/api/custom-characters"),
+  "custom characters should use API"
 );
 
 if (exists("src/app/landing/LandingContent.tsx")) {
