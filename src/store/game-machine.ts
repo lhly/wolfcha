@@ -502,7 +502,7 @@ export const humanNameAtom = atomWithStorage("wolfcha_human_name", "");
 export const apiKeyConfirmedAtom = atom(false);
 
 // Raw game state atom with localStorage persistence
-const rawGameStateAtom = atom<GameState>(loadPersistedGameState());
+export const rawGameStateAtom = atom<GameState>(loadPersistedGameState());
 
 // 游戏核心状态 - wraps raw atom to handle persistence
 export const gameStateAtom = atom(

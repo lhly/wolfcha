@@ -17,7 +17,8 @@ import { CustomCharacterModal } from "@/components/game/CustomCharacterModal";
 import { LocalModelSettingsModal } from "@/components/game/LocalModelSettingsModal";
 import { useCustomCharacters } from "@/hooks/useCustomCharacters";
 import { difficultyAtom, playerCountAtom } from "@/store/settings";
-import { getLocalLlmModel, isLocalLlmConfigured } from "@/lib/local-llm-settings";
+import { fetchLlmConfig, getLlmConfig, getLlmConfigWithDefaults } from "@/lib/llm-config";
+import { LOCAL_LLM_DEFAULTS } from "@/lib/local-llm-settings";
 import { useAppLocale } from "@/i18n/useAppLocale";
 
 type SponsorCardProps = {
@@ -243,9 +244,10 @@ export function WelcomeScreen({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCustomCharacterOpen, setIsCustomCharacterOpen] = useState(false);
   const selectionStorageKey = CUSTOM_CHARACTER_SELECTION_STORAGE_KEY;
+  const initialLlmConfig = getLlmConfig() ?? getLlmConfigWithDefaults();
   const [llmState, setLlmState] = useState(() => ({
-    configured: isLocalLlmConfigured(),
-    model: getLocalLlmModel(),
+    configured: Boolean(initialLlmConfig.apiKey && initialLlmConfig.baseUrl),
+    model: initialLlmConfig.model || LOCAL_LLM_DEFAULTS.model,
   }));
 
   const readSelectionFromStorage = useCallback(() => {
@@ -290,21 +292,17 @@ export function WelcomeScreen({
     }
   }, [customCharacters.characters, customCharacters.loading, selectedCharacterIds]);
 
-  const refreshLlmState = useCallback(() => {
+  const refreshLlmState = useCallback(async () => {
+    const cfg = await fetchLlmConfig();
+    const effective = cfg ?? getLlmConfigWithDefaults();
     setLlmState({
-      configured: isLocalLlmConfigured(),
-      model: getLocalLlmModel(),
+      configured: Boolean(effective.apiKey && effective.baseUrl),
+      model: effective.model || LOCAL_LLM_DEFAULTS.model,
     });
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key || !e.key.startsWith("wolfcha_llm_")) return;
-      refreshLlmState();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    void refreshLlmState();
   }, [refreshLlmState]);
 
   // 调试面板状态

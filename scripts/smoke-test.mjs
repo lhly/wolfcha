@@ -95,6 +95,12 @@ for (const file of apiFiles) {
   check(exists(file), `Missing API route: ${file}`);
 }
 
+check(
+  !readFile("src/app/page.tsx").includes("\"use client\""),
+  "page.tsx should be server component."
+);
+check(exists("src/app/HomeClient.tsx"), "Missing HomeClient.tsx.");
+
 if (exists("src/app/landing/LandingContent.tsx")) {
   const landing = readFile("src/app/landing/LandingContent.tsx");
   check(
