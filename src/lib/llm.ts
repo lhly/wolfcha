@@ -636,12 +636,8 @@ export async function generateJSON<T>(
     }
   }
 
-  const shouldForceJsonObject =
-    !options.response_format && getProviderForModel(options.model) === "zenmux";
-
   const result = await generateCompletion({
     ...options,
-    ...(shouldForceJsonObject ? { response_format: { type: "json_object" as const } } : {}),
     messages: messagesWithFormat,
   });
 

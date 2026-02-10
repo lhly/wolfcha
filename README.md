@@ -119,6 +119,12 @@ npm install
 
 Start the app, open **Model Settings**, then fill in your **BaseUrl**, **API Key**, and **Model** (OpenAI‑compatible).
 
+Optional: create a local env file if you need TTS or other server features.
+
+```bash
+cp .env.example .env.local
+```
+
 4.  **Start the development server**
 
 ```bash

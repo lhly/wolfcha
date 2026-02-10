@@ -119,6 +119,12 @@ npm install
 
 启动应用后在「模型设置」里填写 **BaseUrl / API Key / Model**（OpenAI-compatible）。
 
+可选：如果你需要语音合成或其他服务器功能，再创建本地环境变量文件。
+
+```bash
+cp .env.example .env.local
+```
+
 4.  **启动开发服务器**
 
 ```bash

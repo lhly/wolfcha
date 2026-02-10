@@ -72,6 +72,16 @@ if (exists("src/lib/supabase.ts")) {
   errors.push("Missing supabase.ts.");
 }
 
+if (exists("src/lib/llm.ts")) {
+  const llmFile = readFile("src/lib/llm.ts");
+  check(
+    !llmFile.includes("getProviderForModel("),
+    "llm.ts should not reference getProviderForModel."
+  );
+} else {
+  errors.push("Missing llm.ts.");
+}
+
 if (exists("src/app/landing/LandingContent.tsx")) {
   const landing = readFile("src/app/landing/LandingContent.tsx");
   check(
