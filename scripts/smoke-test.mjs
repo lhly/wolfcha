@@ -84,6 +84,17 @@ if (exists("src/lib/llm.ts")) {
   errors.push("Missing llm.ts.");
 }
 
+const apiFiles = [
+  "src/app/api/local-config/route.ts",
+  "src/app/api/game-state/route.ts",
+  "src/app/api/custom-characters/route.ts",
+  "src/app/api/game-history/route.ts",
+  "src/app/api/meta/route.ts",
+];
+for (const file of apiFiles) {
+  check(exists(file), `Missing API route: ${file}`);
+}
+
 if (exists("src/app/landing/LandingContent.tsx")) {
   const landing = readFile("src/app/landing/LandingContent.tsx");
   check(
