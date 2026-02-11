@@ -122,6 +122,15 @@ if (exists("src/app/landing/LandingContent.tsx")) {
   errors.push("Missing LandingContent.tsx.");
 }
 
+check(
+  readFile("src/types/game.ts").includes("phaseSpeechSummaries"),
+  "GameState should include phaseSpeechSummaries."
+);
+check(
+  readFile("src/lib/prompt-utils.ts").includes("phase_summaries"),
+  "prompt-utils should build <phase_summaries> section."
+);
+
 if (errors.length > 0) {
   console.error("Smoke test failed:");
   for (const message of errors) {
