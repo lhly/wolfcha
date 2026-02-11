@@ -17,7 +17,7 @@ import { getI18n } from "@/i18n/translator";
 
 // ============ 游戏状态持久化配置 ============
 
-const GAME_STATE_VERSION = 1;
+export const GAME_STATE_VERSION = 1;
 // Phases that indicate a game is in progress (for UI display purposes)
 const IN_PROGRESS_PHASES: Phase[] = [
   "NIGHT_START",

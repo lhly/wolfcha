@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { FingerprintSimple, PawPrint, Sparkle, Wrench, GearSix, GithubLogo, Star, EnvelopeSimple, Handshake, DotsThreeOutlineVertical, Users, UsersFour } from "@phosphor-icons/react";
+import { FingerprintSimple, PawPrint, Sparkle, Wrench, GearSix, GithubLogo, Star, EnvelopeSimple, Handshake, DotsThreeOutlineVertical, Users, UsersFour, ClockCounterClockwise } from "@phosphor-icons/react";
 import { WerewolfIcon } from "@/components/icons/FlatIcons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -201,6 +201,7 @@ interface WelcomeScreenProps {
   onSoundEnabledChange: (value: boolean) => void;
   onAiVoiceEnabledChange: (value: boolean) => void;
   onAutoAdvanceDialogueEnabledChange: (value: boolean) => void;
+  onOpenRecentGames?: () => void;
 }
 
 export function WelcomeScreen({
@@ -221,6 +222,7 @@ export function WelcomeScreen({
   onSoundEnabledChange,
   onAiVoiceEnabledChange,
   onAutoAdvanceDialogueEnabledChange,
+  onOpenRecentGames,
 }: WelcomeScreenProps) {
   const t = useTranslations();
   const { locale } = useAppLocale();
@@ -712,6 +714,20 @@ export function WelcomeScreen({
                 <GearSix size={16} />
                 {t("welcome.settings")}
               </Button>
+              {onOpenRecentGames && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onOpenRecentGames();
+                  }}
+                >
+                  <ClockCounterClockwise size={16} />
+                  {t("recentGames.button")}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -844,6 +860,17 @@ export function WelcomeScreen({
               {t("welcome.modelSettings.setup")}
             </Button>
 
+            {onOpenRecentGames && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onOpenRecentGames}
+                className="h-8 text-xs gap-2"
+              >
+                <ClockCounterClockwise size={16} />
+                {t("recentGames.button")}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"

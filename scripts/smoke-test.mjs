@@ -118,6 +118,14 @@ check(
 );
 check(exists("src/app/HomeClient.tsx"), "Missing HomeClient.tsx.");
 check(
+  exists("src/components/game/RecentGamesModal.tsx"),
+  "Missing RecentGamesModal component"
+);
+check(
+  readFile("src/app/HomeClient.tsx").includes("RecentGamesModal"),
+  "HomeClient should use RecentGamesModal"
+);
+check(
   readFile("src/store/game-machine.ts").includes("game-state-storage"),
   "game-machine should use sqlite storage helper."
 );

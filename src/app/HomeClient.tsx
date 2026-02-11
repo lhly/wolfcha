@@ -13,6 +13,7 @@ import {
   Drop,
   Crosshair,
   GearSix,
+  ClockCounterClockwise,
 } from "@phosphor-icons/react";
 import {
   WerewolfIcon,
@@ -51,6 +52,7 @@ import { NightActionOverlay, type NightActionOverlayType } from "@/components/ga
 import { TutorialOverlay, type TutorialPayload } from "@/components/game/TutorialOverlay";
 import { DevConsole, DevModeButton } from "@/components/DevTools";
 import { SettingsModal } from "@/components/game/SettingsModal";
+import { RecentGamesModal } from "@/components/game/RecentGamesModal";
 
 import { buildSimpleAvatarUrl, getModelLogoUrl } from "@/lib/avatar-config";
 import { audioManager, makeAudioTaskId } from "@/lib/audio-manager";
@@ -534,6 +536,7 @@ function HomeInner() {
   const [isNotebookOpen, setIsNotebookOpen] = useState(false);
   const [isDevConsoleOpen, setIsDevConsoleOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isRecentGamesOpen, setIsRecentGamesOpen] = useState(false);
   const [detailPlayer, setDetailPlayer] = useState<Player | null>(null);
   const [isRoleRevealOpen, setIsRoleRevealOpen] = useState(false);
   const [hasShownRoleReveal, setHasShownRoleReveal] = useState(false);
@@ -788,6 +791,10 @@ function HomeInner() {
       clearAutoAdvanceTimeout();
       return;
     }
+    if (isRecentGamesOpen) {
+      clearAutoAdvanceTimeout();
+      return;
+    }
     if (isNotebookOpen) {
       clearAutoAdvanceTimeout();
       return;
@@ -850,6 +857,7 @@ function HomeInner() {
     isNotebookOpen,
     isRoleRevealOpen,
     isSettingsOpen,
+    isRecentGamesOpen,
     isWaitingForAI,
     showTable,
     waitingForNextRound,
@@ -1322,6 +1330,7 @@ function HomeInner() {
               onSoundEnabledChange={setSoundEnabled}
               onAiVoiceEnabledChange={setAiVoiceEnabled}
               onAutoAdvanceDialogueEnabledChange={setAutoAdvanceDialogueEnabled}
+              onOpenRecentGames={() => setIsRecentGamesOpen(true)}
             />
           </motion.div>
         ) : (
@@ -1446,16 +1455,27 @@ function HomeInner() {
                     <span>WOLFCHA</span>
                   </div>
 
-                  {/* 移动端设置按钮 - 只显示图标 */}
-                  <button
-                    type="button"
-                    onClick={() => setIsSettingsOpen(true)}
-                    title={t("page.audioSettings")}
-                    aria-label={t("page.audioSettings")}
-                    className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-primary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-bg)]"
-                  >
-                    <GearSix size={16} />
-                  </button>
+                  {/* 移动端按钮组 - 最近对局 + 设置 */}
+                  <div className="md:hidden inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsRecentGamesOpen(true)}
+                      title={t("recentGames.title")}
+                      aria-label={t("recentGames.title")}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-primary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-bg)]"
+                    >
+                      <ClockCounterClockwise size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsSettingsOpen(true)}
+                      title={t("page.audioSettings")}
+                      aria-label={t("page.audioSettings")}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-primary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-bg)]"
+                    >
+                      <GearSix size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="wc-topbar__info">
@@ -1502,6 +1522,16 @@ function HomeInner() {
                       {canShowRole ? getRoleLabel(humanPlayer?.role) : t("page.rolePending")}
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRecentGamesOpen(true)}
+                    title={t("recentGames.title")}
+                    aria-label={t("recentGames.title")}
+                    className="inline-flex items-center gap-2 rounded-md border-2 border-[var(--border-color)] bg-[var(--bg-card)] px-2.5 py-1 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-bg)]"
+                  >
+                    <ClockCounterClockwise size={16} />
+                    {t("recentGames.button")}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setIsSettingsOpen(true)}
@@ -1721,6 +1751,13 @@ function HomeInner() {
         humanPlayer={humanPlayer}
         isGenshinMode={gameState?.isGenshinMode ?? isGenshinMode}
         isSpectatorMode={gameState?.isSpectatorMode ?? false}
+      />
+
+      <RecentGamesModal
+        open={isRecentGamesOpen}
+        onOpenChange={setIsRecentGamesOpen}
+        currentGameId={gameState.gameId}
+        isGameInProgress={gameInProgress}
       />
 
       <SettingsModal

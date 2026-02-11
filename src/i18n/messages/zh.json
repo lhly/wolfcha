@@ -2130,6 +2130,27 @@
       "testFail": "连接测试失败"
     }
   },
+  "recentGames": {
+    "title": "最近对局",
+    "description": "查看最近 30 局记录，并继续进行中的对局。",
+    "button": "最近对局",
+    "loading": "加载最近对局中...",
+    "empty": "暂无对局记录。",
+    "resume": "继续",
+    "lastUpdated": "最后更新：{time}",
+    "dayLabel": "第 {day} 天",
+    "gameLabel": "对局 #{id}",
+    "confirmSwitch": "将暂停当前对局并切换到选择的对局，是否继续？",
+    "fetchFailed": "加载最近对局失败",
+    "resumeFailed": "恢复对局失败",
+    "missingCheckpoint": "没有找到可恢复的检查点",
+    "status": {
+      "inProgress": "进行中",
+      "completed": "已完成",
+      "active": "当前进行中",
+      "current": "当前进行中"
+    }
+  },
   "lowCreditModal": {
     "title": "额度即将用尽",
     "description": "您的游戏额度较低，建议补充额度以获得更好的体验。",
