@@ -130,6 +130,22 @@ check(
   readFile("src/lib/prompt-utils.ts").includes("phase_summaries"),
   "prompt-utils should build <phase_summaries> section."
 );
+check(
+  readFile("src/lib/game-master.ts").includes("generatePhaseSpeechSummary"),
+  "Missing phase speech summary generator."
+);
+check(
+  readFile("src/hooks/useGameLogic.ts").includes("phaseSpeechSummaries"),
+  "Missing phase summaries integration in useGameLogic."
+);
+check(
+  readFile("src/i18n/messages/zh.json").includes("phaseSpeechSummary"),
+  "Missing phase speech summary i18n keys (zh)."
+);
+check(
+  readFile("src/i18n/messages/en.json").includes("phaseSpeechSummary"),
+  "Missing phase speech summary i18n keys (en)."
+);
 
 if (errors.length > 0) {
   console.error("Smoke test failed:");
