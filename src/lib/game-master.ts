@@ -11,6 +11,7 @@ import {
   type Alignment,
   type DailySummaryFact,
   type DailySummaryVoteData,
+  type PhaseSpeechSummaryPhase,
   GENERATOR_MODEL,
   SUMMARY_MODEL,
   PLAYER_MODELS,
@@ -163,6 +164,7 @@ export function createInitialGameState(): GameState {
     dailySummaries: {},
     dailySummaryFacts: {},
     dailySummaryVoteData: {},
+    phaseSpeechSummaries: {},
     nightActions: {},
     roleAbilities: {
       witchHealUsed: false,
@@ -696,6 +698,140 @@ export async function generateDailySummary(
     .trim();
 
   return { bullets: fallback ? [fallback] : [], facts: [], voteData };
+}
+
+export async function generatePhaseSpeechSummary(
+  state: GameState,
+  options: {
+    day: number;
+    phase: Phase;
+    eligibleSeats: number[];
+    messagesBySeat: Record<number, string[]>;
+  }
+): Promise<PhaseSpeechSummaryPhase | null> {
+  const { t } = getI18n();
+  const startTime = Date.now();
+  const summaryModel = getSummaryModel();
+  const { day, phase, eligibleSeats, messagesBySeat } = options;
+
+  if (!eligibleSeats || eligibleSeats.length === 0) return null;
+
+  const silentLabel = t("gameMaster.phaseSpeechSummary.silentLabel");
+  const seatEntries = eligibleSeats
+    .map((seat) => ({ seat, messages: messagesBySeat[seat] ?? [] }))
+    .filter((entry) => entry.messages.length > 0);
+
+  const fallbackSummaries: Record<number, { text: string; silent?: boolean }> = {};
+  for (const seat of eligibleSeats) {
+    const seatMessages = messagesBySeat[seat] ?? [];
+    if (seatMessages.length === 0) {
+      fallbackSummaries[seat] = { text: silentLabel, silent: true };
+    } else {
+      fallbackSummaries[seat] = { text: seatMessages.join(" ").slice(0, 120) };
+    }
+  }
+
+  if (seatEntries.length === 0) {
+    return { eligibleSeats, summaries: fallbackSummaries };
+  }
+
+  const phaseLabelKey =
+    phase === "DAY_BADGE_SPEECH"
+      ? "badge"
+      : phase === "DAY_PK_SPEECH"
+        ? "pk"
+        : phase === "DAY_LAST_WORDS"
+          ? "lastWords"
+          : "day";
+  const phaseLabel = t(`gameMaster.phaseSpeechSummary.phaseLabels.${phaseLabelKey}`);
+
+  const transcript = seatEntries
+    .map(({ seat, messages }) => {
+      const player = state.players.find((p) => p.seat === seat);
+      const seatLabel = t("mentions.seatLabel", { seat: seat + 1 });
+      const nameLabel = player?.displayName ? ` ${player.displayName}` : "";
+      return `${seatLabel}${nameLabel}: ${messages.join("\n")}`;
+    })
+    .join("\n")
+    .slice(0, 15000);
+
+  const system = t("gameMaster.phaseSpeechSummary.systemPrompt");
+  const user = t("gameMaster.phaseSpeechSummary.userPrompt", { day, phaseLabel, transcript });
+  const messages: LLMMessage[] = [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ];
+
+  try {
+    const result = await generateCompletion({
+      model: summaryModel,
+      messages,
+      temperature: GAME_TEMPERATURE.SUMMARY,
+      response_format: { type: "json_object" },
+    });
+
+    const cleaned = stripMarkdownCodeFences(result.content);
+    let parsed: Array<{ seat?: number; summary?: string }> = [];
+    try {
+      const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (objectMatch) {
+        const obj = JSON.parse(objectMatch[0]) as { summaries?: Array<{ seat?: number; summary?: string }> };
+        if (Array.isArray(obj.summaries)) {
+          parsed = obj.summaries;
+        }
+      }
+    } catch {
+      parsed = [];
+    }
+
+    const summaries: Record<number, { text: string; silent?: boolean }> = {};
+    for (const item of parsed) {
+      if (typeof item?.seat !== "number") continue;
+      const text = String(item.summary ?? "").trim();
+      if (!text) continue;
+      summaries[item.seat] = { text };
+    }
+
+    for (const seat of eligibleSeats) {
+      if (!summaries[seat]) {
+        summaries[seat] = fallbackSummaries[seat];
+      }
+    }
+
+    await aiLogger.log({
+      type: "phase_summary",
+      request: {
+        model: summaryModel,
+        messages,
+        temperature: GAME_TEMPERATURE.SUMMARY,
+      },
+      response: {
+        content: cleaned,
+        raw: result.content,
+        rawResponse: JSON.stringify(result.raw, null, 2),
+        finishReason: result.raw.choices?.[0]?.finish_reason,
+        duration: Date.now() - startTime,
+        parsed,
+      },
+    });
+
+    return { eligibleSeats, summaries };
+  } catch (error) {
+    await aiLogger.log({
+      type: "phase_summary",
+      request: {
+        model: summaryModel,
+        messages,
+        temperature: GAME_TEMPERATURE.SUMMARY,
+      },
+      response: {
+        content: "",
+        duration: Date.now() - startTime,
+      },
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { eligibleSeats, summaries: fallbackSummaries };
+  }
 }
 
 export async function* generateAISpeechStream(

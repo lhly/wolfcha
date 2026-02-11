@@ -1780,6 +1780,17 @@
       "userPrompt": "【Day {day} Daytime Log】\n{transcript}\n\nStrictly return JSON:",
       "fallbackText": "Day {day}: No summary available"
     },
+    "phaseSpeechSummary": {
+      "systemPrompt": "You are a speech summarizer for Werewolf. For the specified phase, summarize each speaking player's content in 1-2 sentences and keep seat numbers. Do not invent players who did not speak.\n\nOutput JSON: { \"summaries\": [ {\"seat\": 1, \"summary\": \"...\"} ] }",
+      "userPrompt": "【Day {day}】【Phase: {phaseLabel}】Speeches:\n{transcript}\n\nReturn JSON summaries by seat:",
+      "phaseLabels": {
+        "badge": "Badge Campaign",
+        "day": "Day Discussion",
+        "pk": "PK Speech",
+        "lastWords": "Last Words"
+      },
+      "silentLabel": "(silent)"
+    },
     "voteFallback": {
       "missingReason": "No reason provided",
       "parseSeatOnly": "Parse failed - seat only",
