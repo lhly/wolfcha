@@ -40,6 +40,7 @@ import { getSystemMessages, getUiText } from "@/lib/game-texts";
 import { getRandomScenario } from "@/lib/scenarios";
 import { DELAY_CONFIG, getRoleName } from "@/lib/game-constants";
 import { completeGameHistory, pauseGameHistory, startGameHistory } from "@/lib/game-history";
+import { fetchPersistedGameState } from "@/lib/game-state-storage";
 import { generateUUID } from "@/lib/utils";
 import {
   AsyncFlowController,
@@ -94,6 +95,7 @@ export function useGameLogic() {
   
   // Track if we've already restored the game state on mount
   const hasRestoredRef = useRef(false);
+  const hasFetchedRestoreRef = useRef(false);
   // If the FIRST render is already "in progress", it's almost certainly restored from localStorage
   const restoredInProgressOnMountRef = useRef(
     isGameInProgress(gameState) && gameState.players.length > 0
@@ -103,14 +105,34 @@ export function useGameLogic() {
   // Restore game state from localStorage on mount
   useEffect(() => {
     if (hasRestoredRef.current) return;
-    hasRestoredRef.current = true;
     
     // Check if the current gameState is from a restored game in progress
     if (isGameInProgress(gameState) && gameState.players.length > 0) {
+      hasRestoredRef.current = true;
       console.info("[wolfcha] Restoring game session from previous state");
       setGameStarted(true);
       setShowTable(true);
+      return;
     }
+
+    if (hasFetchedRestoreRef.current) return;
+    hasFetchedRestoreRef.current = true;
+
+    void (async () => {
+      try {
+        const persisted = await fetchPersistedGameState();
+        const persistedState = persisted?.state;
+        if (!persistedState) return;
+        if (!isGameInProgress(persistedState) || persistedState.players.length === 0) return;
+        hasRestoredRef.current = true;
+        setGameState(persistedState);
+        console.info("[wolfcha] Restoring game session from persisted state");
+        setGameStarted(true);
+        setShowTable(true);
+      } catch (error) {
+        console.warn("[wolfcha] Failed to fetch persisted game state:", error);
+      }
+    })();
   }, [gameState]);
 
   useEffect(() => {

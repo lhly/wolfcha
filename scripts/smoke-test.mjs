@@ -210,6 +210,32 @@ check(
   readFile("src/hooks/useGameLogic.ts").includes("phaseSpeechSummaries"),
   "Missing phase summaries integration in useGameLogic."
 );
+
+const gameLogicFile = readFile("src/hooks/useGameLogic.ts");
+const hasRestoredReturnIndex = gameLogicFile.indexOf("if (hasRestoredRef.current) return;");
+const inProgressCheckIndex = gameLogicFile.indexOf(
+  "if (isGameInProgress(gameState) && gameState.players.length > 0)"
+);
+const persistedGuardIndex = gameLogicFile.indexOf(
+  "if (!isGameInProgress(persistedState) || persistedState.players.length === 0) return;"
+);
+const firstMarkRestoredIndex = gameLogicFile.indexOf("hasRestoredRef.current = true;");
+const secondMarkRestoredIndex = gameLogicFile.indexOf("hasRestoredRef.current = true;", firstMarkRestoredIndex + 1);
+check(
+  hasRestoredReturnIndex !== -1 &&
+    inProgressCheckIndex !== -1 &&
+    persistedGuardIndex !== -1 &&
+    firstMarkRestoredIndex !== -1 &&
+    secondMarkRestoredIndex !== -1 &&
+    hasRestoredReturnIndex < inProgressCheckIndex &&
+    inProgressCheckIndex < firstMarkRestoredIndex &&
+    persistedGuardIndex < secondMarkRestoredIndex,
+  "useGameLogic should only mark restored after in-progress state is available."
+);
+check(
+  gameLogicFile.includes("fetchPersistedGameState") && gameLogicFile.includes("hasFetchedRestoreRef"),
+  "useGameLogic should attempt a persisted-state fetch fallback when restore check misses."
+);
 check(
   readFile("src/i18n/messages/zh.json").includes("phaseSpeechSummary"),
   "Missing phase speech summary i18n keys (zh)."
