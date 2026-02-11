@@ -43,6 +43,10 @@ check(
 );
 
 check(exists("src/lib/sqlite.ts"), "Missing sqlite helper.");
+check(
+  readFile("src/lib/sqlite.ts").includes("last_checkpoint_state_json"),
+  "Missing game_history checkpoint column"
+);
 
 if (exists("src/app/api/chat/route.ts")) {
   const chatRoute = readFile("src/app/api/chat/route.ts");
@@ -94,6 +98,11 @@ const apiFiles = [
 for (const file of apiFiles) {
   check(exists(file), `Missing API route: ${file}`);
 }
+
+check(
+  readFile("src/app/api/game-history/route.ts").includes("checkpoint"),
+  "Missing checkpoint action"
+);
 
 check(
   !readFile("src/app/page.tsx").includes("\"use client\""),
