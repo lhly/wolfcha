@@ -26,7 +26,7 @@ export interface AILogEntry {
    | "wolf_action" 
    | "guard_action" 
    | "witch_action" 
-   | "hunter_shoot" | "character_generation" | "daily_summary" | "daily_summary_retry" | "wolf_chat";
+   | "hunter_shoot" | "character_generation" | "daily_summary" | "daily_summary_retry" | "phase_summary" | "wolf_chat";
   request: {
     model: string;
     messages: LLMMessage[];
@@ -131,6 +131,7 @@ class AILogger {
       hunter_shoot: "#FF5722",
       character_generation: "#FF9800",
       daily_summary: "#795548",
+      phase_summary: "#009688",
     };
 
     const color = typeColors[entry.type] || "#666";

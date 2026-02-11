@@ -275,6 +275,12 @@ export const buildPhaseSummariesSection = (state: GameState): string => {
   if (dayEntries.length === 0) return "";
 
   const sortedPlayers = [...state.players].sort((a, b) => a.seat - b.seat);
+  const phaseLabelMap: Record<string, string> = {
+    DAY_BADGE_SPEECH: t("gameMaster.phaseSpeechSummary.phaseLabels.badge"),
+    DAY_SPEECH: t("gameMaster.phaseSpeechSummary.phaseLabels.day"),
+    DAY_PK_SPEECH: t("gameMaster.phaseSpeechSummary.phaseLabels.pk"),
+    DAY_LAST_WORDS: t("gameMaster.phaseSpeechSummary.phaseLabels.lastWords"),
+  };
   const blocks: string[] = [];
 
   for (const { day, data } of dayEntries.sort((a, b) => a.day - b.day)) {
@@ -287,7 +293,7 @@ export const buildPhaseSummariesSection = (state: GameState): string => {
         if (!phaseData) continue;
         const summary = phaseData.summaries?.[player.seat];
         if (!summary?.text) continue;
-        const phaseLabel = String(phase);
+        const phaseLabel = phaseLabelMap[String(phase)] ?? String(phase);
         phaseChunks.push(`[${phaseLabel}] ${summary.text}`);
       }
       if (phaseChunks.length > 0) {

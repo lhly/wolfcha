@@ -20,7 +20,7 @@ import { useLocalStorageState } from "ahooks";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
-import { PLAYER_MODELS, type GameState, type Player, type Phase, type Role, type DevPreset, type ModelRef, type StartGameOptions } from "@/types/game";
+import { PLAYER_MODELS, type GameState, type Player, type Phase, type Role, type DevPreset, type ModelRef, type StartGameOptions, type PhaseSpeechSummaryPhase } from "@/types/game";
 import { gameStateAtom, isValidTransition, clearPersistedGameState, isGameInProgress } from "@/store/game-machine";
 import { getGeneratorModel } from "@/lib/api-keys";
 import {
@@ -32,6 +32,7 @@ import {
   checkWinCondition,
   killPlayer,
   generateDailySummary,
+  generatePhaseSpeechSummary,
   getNextAliveSeat,
 } from "@/lib/game-master";
 import { buildGenshinModelRefs, generateCharacters, generateGenshinModeCharacters, sampleModelRefs, type GeneratedCharacter } from "@/lib/character-generator";
@@ -417,6 +418,98 @@ export function useGameLogic() {
     []
   );
 
+  const getSpeechPhaseOrderForDay = (state: GameState, day: number): Phase[] => {
+    const order: Phase[] = [];
+    const seen = new Set<Phase>();
+    const speechPhases: Phase[] = ["DAY_BADGE_SPEECH", "DAY_PK_SPEECH", "DAY_SPEECH", "DAY_LAST_WORDS"];
+    for (const m of state.messages) {
+      if (m.day !== day) continue;
+      if (!m.phase) continue;
+      if (!speechPhases.includes(m.phase)) continue;
+      if (!seen.has(m.phase)) {
+        seen.add(m.phase);
+        order.push(m.phase);
+      }
+    }
+    return order;
+  };
+
+  const collectPhaseMessagesBySeat = (
+    state: GameState,
+    day: number,
+    phase: Phase
+  ): Record<number, string[]> => {
+    const bySeat: Record<number, string[]> = {};
+    for (const m of state.messages) {
+      if (m.day !== day) continue;
+      if (m.isSystem) continue;
+      if (m.phase !== phase) continue;
+      const player = state.players.find((p) => p.playerId === m.playerId);
+      if (!player) continue;
+      if (!bySeat[player.seat]) bySeat[player.seat] = [];
+      bySeat[player.seat].push(m.content);
+    }
+    return bySeat;
+  };
+
+  const getEligibleSeatsForPhase = (state: GameState, phase: Phase): number[] => {
+    if (phase === "DAY_BADGE_SPEECH") {
+      const candidates = state.badge.candidates || [];
+      if (candidates.length > 0) return candidates;
+      return state.players.filter((p) => p.alive).map((p) => p.seat);
+    }
+    if (phase === "DAY_PK_SPEECH") {
+      return Array.isArray(state.pkTargets) ? state.pkTargets : [];
+    }
+    if (phase === "DAY_LAST_WORDS") {
+      if (typeof state.currentSpeakerSeat === "number") return [state.currentSpeakerSeat];
+      const seatSet = new Set<number>();
+      for (const m of state.messages) {
+        if (m.day !== state.day) continue;
+        if (!m.isLastWords) continue;
+        const player = state.players.find((p) => p.playerId === m.playerId);
+        if (player) seatSet.add(player.seat);
+      }
+      return Array.from(seatSet);
+    }
+    return state.players.filter((p) => p.alive).map((p) => p.seat);
+  };
+
+  const upsertPhaseSpeechSummary = (
+    state: GameState,
+    day: number,
+    phase: Phase,
+    summaryPhase: PhaseSpeechSummaryPhase
+  ): GameState => {
+    const base = state.phaseSpeechSummaries ?? {};
+    const existingDay = base[day] ?? { order: [], phases: {} };
+    const baseOrder = getSpeechPhaseOrderForDay(state, day);
+    const order = baseOrder.includes(phase) ? baseOrder : [...baseOrder, phase];
+    const phases = { ...existingDay.phases, [phase]: summaryPhase };
+    return {
+      ...state,
+      phaseSpeechSummaries: {
+        ...base,
+        [day]: { order, phases },
+      },
+    };
+  };
+
+  const ensurePhaseSpeechSummary = useCallback(async (
+    state: GameState,
+    phase: Phase,
+    options?: { eligibleSeats?: number[] }
+  ): Promise<GameState> => {
+    const day = state.day;
+    if (state.phaseSpeechSummaries?.[day]?.phases?.[phase]) return state;
+    const eligibleSeats = options?.eligibleSeats ?? getEligibleSeatsForPhase(state, phase);
+    if (!eligibleSeats || eligibleSeats.length === 0) return state;
+    const messagesBySeat = collectPhaseMessagesBySeat(state, day, phase);
+    const summaryPhase = await generatePhaseSpeechSummary(state, { day, phase, eligibleSeats, messagesBySeat });
+    if (!summaryPhase) return state;
+    return upsertPhaseSpeechSummary(state, day, phase, summaryPhase);
+  }, []);
+
   const buildRawDayTranscript = useCallback((state: GameState): string => {
     const aliveIds = new Set(state.players.filter((p) => p.alive).map((p) => p.playerId));
     const dayStartIndex = (() => {
@@ -577,19 +670,22 @@ export function useGameLogic() {
   };
   onPkSpeechEndRef.current = async (state: GameState) => {
     const token = getToken();
+    const summarizedState = await ensurePhaseSpeechSummary(state, "DAY_PK_SPEECH", {
+      eligibleSeats: Array.isArray(state.pkTargets) ? state.pkTargets : [],
+    });
     const nextState = {
-      ...state,
+      ...summarizedState,
       pkTargets: undefined,
       pkSource: undefined,
     };
 
-    if (state.pkSource === "badge") {
+    if (summarizedState.pkSource === "badge") {
       await badgePhase.startBadgeElectionPhase(nextState, { isRevote: true });
       return;
     }
 
-    if (state.pkSource === "vote") {
-      await enterVotePhase(state, token, { isRevote: true });
+    if (summarizedState.pkSource === "vote") {
+      await enterVotePhase(nextState, token, { isRevote: true });
       return;
     }
   };
@@ -619,13 +715,16 @@ export function useGameLogic() {
     // 天黑时同步游戏进度到数据库（incrementRound 内部会立即同步）
     gameSessionTracker.incrementRound().catch(() => {});
 
+    let phaseSummaryState = await ensurePhaseSpeechSummary(state, "DAY_BADGE_SPEECH");
+    phaseSummaryState = await ensurePhaseSpeechSummary(phaseSummaryState, "DAY_SPEECH");
+
     const systemMessages = getSystemMessages();
-    const lastGuardTarget = state.nightActions.guardTarget ?? state.nightActions.lastGuardTarget;
+    const lastGuardTarget = phaseSummaryState.nightActions.guardTarget ?? phaseSummaryState.nightActions.lastGuardTarget;
     // Preserve seerHistory across nights
-    const seerHistory = state.nightActions.seerHistory;
+    const seerHistory = phaseSummaryState.nightActions.seerHistory;
     let nextState = {
-      ...state,
-      day: state.day + 1,
+      ...phaseSummaryState,
+      day: phaseSummaryState.day + 1,
       nightActions: {
         ...(lastGuardTarget !== undefined ? { lastGuardTarget } : {}),
         ...(seerHistory ? { seerHistory } : {}),
@@ -646,7 +745,7 @@ export function useGameLogic() {
 
     setDialogue(speakerHost, systemMessages.summarizingDay, false);
 
-    const summarized = await maybeGenerateDailySummary(state, { force: true });
+    const summarized = await maybeGenerateDailySummary(phaseSummaryState, { force: true });
     if (!isTokenValid(token)) return;
 
     const mergedState = {
@@ -654,10 +753,11 @@ export function useGameLogic() {
       dailySummaries: summarized.dailySummaries,
       dailySummaryFacts: summarized.dailySummaryFacts,
       dailySummaryVoteData: summarized.dailySummaryVoteData ?? nextState.dailySummaryVoteData,
+      phaseSpeechSummaries: summarized.phaseSpeechSummaries ?? nextState.phaseSpeechSummaries,
     };
 
     await runNightPhaseAction(mergedState, token, "START_NIGHT");
-  }, [isTokenValid, maybeGenerateDailySummary, runNightPhaseAction, setGameState, setDialogue, speakerHost, transitionPhase]);
+  }, [ensurePhaseSpeechSummary, isTokenValid, maybeGenerateDailySummary, runNightPhaseAction, setGameState, setDialogue, speakerHost, transitionPhase]);
   proceedToNightRef.current = proceedToNight;
 
   // ============================================
@@ -955,6 +1055,11 @@ export function useGameLogic() {
       if (!isTokenValid(token)) return;
 
       await startLastWordsPhase(state, result.seat, async (s) => {
+        const summarizedState = await ensurePhaseSpeechSummary(s, "DAY_LAST_WORDS", {
+          eligibleSeats: [result.seat],
+        });
+        const baseState = summarizedState ?? s;
+
         // 警长死亡，先移交警徽
         if (isSheriff && executedPlayer) {
           afterBadgeTransferRef.current = async (afterTransferState) => {
@@ -973,7 +1078,7 @@ export function useGameLogic() {
 
             await proceedToNight(afterTransferState, token);
           };
-          await badgePhase.handleBadgeTransfer(s, executedPlayer, async (afterTransferState) => {
+          await badgePhase.handleBadgeTransfer(baseState, executedPlayer, async (afterTransferState) => {
             const cb = afterBadgeTransferRef.current;
             afterBadgeTransferRef.current = null;
             if (cb) await cb(afterTransferState);
@@ -982,21 +1087,21 @@ export function useGameLogic() {
         }
 
         // 猎人开枪
-        if (executedPlayer?.role === "Hunter" && s.roleAbilities.hunterCanShoot) {
-          await specialEvents.handleHunterDeath(s, executedPlayer, false, token, async (afterHunterState) => {
+        if (executedPlayer?.role === "Hunter" && baseState.roleAbilities.hunterCanShoot) {
+          await specialEvents.handleHunterDeath(baseState, executedPlayer, false, token, async (afterHunterState) => {
             await proceedToNight(afterHunterState, token);
           });
           return;
         }
 
         // 检查胜负
-        const winnerAfterLastWords = checkWinCondition(s);
+        const winnerAfterLastWords = checkWinCondition(baseState);
         if (winnerAfterLastWords) {
-          await endGameSafely(s, winnerAfterLastWords);
+          await endGameSafely(baseState, winnerAfterLastWords);
           return;
         }
 
-        await proceedToNight(s, token);
+        await proceedToNight(baseState, token);
       }, token);
       return;
     }
@@ -1005,7 +1110,7 @@ export function useGameLogic() {
     await delay(DELAY_CONFIG.MEDIUM);
     if (!isTokenValid(token)) return;
     await proceedToNight(state, token);
-  }, [isTokenValid, startLastWordsPhase, badgePhase, specialEvents, endGame, proceedToNight]);
+  }, [ensurePhaseSpeechSummary, isTokenValid, startLastWordsPhase, badgePhase, specialEvents, endGame, proceedToNight]);
   handleVoteCompleteRef.current = handleVoteComplete;
 
   
