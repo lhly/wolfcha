@@ -132,6 +132,21 @@ export interface ChatMessage {
   isLastWords?: boolean;  // Flag for last words (遗言) messages
 }
 
+export type PhaseSpeechSummaryEntry = {
+  text: string;
+  silent?: boolean;
+};
+
+export type PhaseSpeechSummaryPhase = {
+  eligibleSeats: number[];
+  summaries: Record<number, PhaseSpeechSummaryEntry>;
+};
+
+export type PhaseSpeechSummaryDay = {
+  order: Phase[];
+  phases: Partial<Record<Phase, PhaseSpeechSummaryPhase>>;
+};
+
 export interface GameState {
   gameId: string;
   phase: Phase;
@@ -190,6 +205,7 @@ export interface GameState {
   dailySummaries: Record<number, string[]>; // day -> summary bullet list
   dailySummaryFacts: Record<number, DailySummaryFact[]>; // day -> structured facts
   dailySummaryVoteData?: Record<number, DailySummaryVoteData>;
+  phaseSpeechSummaries?: Record<number, PhaseSpeechSummaryDay>;
   nightActions: {
     guardTarget?: number;        // 守卫保护的目标
     lastGuardTarget?: number;    // 上一晚守卫保护的目标（不能连续保护同一人）
@@ -283,4 +299,3 @@ export const ALL_MODELS: ModelRef[] = [
   { provider: "zenmux", model: "z-ai/glm-4.7", temperature: 1 , reasoning: { enabled: false } },
   { provider: "zenmux", model: "minimax/minimax-m2.1", temperature: 1 , reasoning: { enabled: false } },
 ];
-

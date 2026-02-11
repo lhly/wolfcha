@@ -163,6 +163,7 @@ export function createInitialGameState(): GameState {
     dailySummaries: {},
     dailySummaryFacts: {},
     dailySummaryVoteData: {},
+    phaseSpeechSummaries: {},
     nightActions: {},
     roleAbilities: {
       witchHealUsed: false,

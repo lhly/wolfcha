@@ -263,6 +263,46 @@ export const buildDailySummariesSection = (state: GameState): string => {
   return `<history>\n${lines.join("\n\n")}\n</history>`;
 };
 
+export const buildPhaseSummariesSection = (state: GameState): string => {
+  const summaries = state.phaseSpeechSummaries;
+  if (!summaries || Object.keys(summaries).length === 0) return "";
+
+  const { t } = getI18n();
+  const dayEntries = Object.entries(summaries)
+    .map(([day, data]) => ({ day: Number(day), data }))
+    .filter((x) => Number.isFinite(x.day));
+
+  if (dayEntries.length === 0) return "";
+
+  const sortedPlayers = [...state.players].sort((a, b) => a.seat - b.seat);
+  const blocks: string[] = [];
+
+  for (const { day, data } of dayEntries.sort((a, b) => a.day - b.day)) {
+    const dayLines: string[] = [];
+    const order = Array.isArray(data.order) ? data.order : [];
+    for (const player of sortedPlayers) {
+      const phaseChunks: string[] = [];
+      for (const phase of order) {
+        const phaseData = data.phases?.[phase];
+        if (!phaseData) continue;
+        const summary = phaseData.summaries?.[player.seat];
+        if (!summary?.text) continue;
+        const phaseLabel = String(phase);
+        phaseChunks.push(`[${phaseLabel}] ${summary.text}`);
+      }
+      if (phaseChunks.length > 0) {
+        const seatLabel = t("mentions.seatLabel", { seat: player.seat + 1 });
+        dayLines.push(`${seatLabel}: ${phaseChunks.join(" ")}`);
+      }
+    }
+    if (dayLines.length > 0) {
+      blocks.push(`<phase_summaries day=${day}>\n${dayLines.join("\n")}\n</phase_summaries>`);
+    }
+  }
+
+  return blocks.join("\n\n");
+};
+
 export const getDayStartIndex = (state: GameState): number => {
   const systemMessages = getSystemMessages();
   for (let i = state.messages.length - 1; i >= 0; i--) {
@@ -693,6 +733,11 @@ alive_count: ${alivePlayers.length}
   const summarySection = buildDailySummariesSection(state);
   if (summarySection) {
     context += `\n\n${summarySection}`;
+  }
+
+  const phaseSummariesSection = buildPhaseSummariesSection(state);
+  if (phaseSummariesSection) {
+    context += `\n\n${phaseSummariesSection}`;
   }
 
   const systemAnnouncements = buildSystemAnnouncementsSinceDawn(state, 8);
