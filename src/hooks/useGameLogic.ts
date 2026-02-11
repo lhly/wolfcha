@@ -39,7 +39,7 @@ import { buildGenshinModelRefs, generateCharacters, generateGenshinModeCharacter
 import { getSystemMessages, getUiText } from "@/lib/game-texts";
 import { getRandomScenario } from "@/lib/scenarios";
 import { DELAY_CONFIG, getRoleName } from "@/lib/game-constants";
-import { saveGameHistory } from "@/lib/game-history";
+import { completeGameHistory, pauseGameHistory, startGameHistory } from "@/lib/game-history";
 import { generateUUID } from "@/lib/utils";
 import {
   AsyncFlowController,
@@ -561,7 +561,7 @@ export function useGameLogic() {
       setIsWaitingForAI(false);
       setWaitingForNextRound(false);
       await endGame(state, winner);
-      void saveGameHistory(gameStateRef.current, winner);
+      void completeGameHistory(state, winner);
     },
     [clearDialogue, clearSpeechQueue, endGame, setIsWaitingForAI, setWaitingForNextRound]
   );
@@ -1627,6 +1627,7 @@ export function useGameLogic() {
       }
 
       setGameState(newState);
+      void startGameHistory(newState);
 
       // In spectator mode, skip role reveal and start the game immediately
       if (isSpectatorMode) {
@@ -1697,6 +1698,11 @@ export function useGameLogic() {
 
   /** 重新开始 */
   const restartGame = useCallback(() => {
+    const current = gameStateRef.current;
+    if (isGameInProgress(current)) {
+      void pauseGameHistory(current);
+    }
+
     // Clear persisted game state from localStorage
     clearPersistedGameState();
     

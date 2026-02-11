@@ -103,6 +103,14 @@ check(
   readFile("src/app/api/game-history/route.ts").includes("checkpoint"),
   "Missing checkpoint action"
 );
+check(
+  readFile("src/lib/game-history.ts").includes("checkpointGameHistory"),
+  "Missing game history checkpoint helper"
+);
+check(
+  readFile("src/hooks/useGameLogic.ts").includes("startGameHistory"),
+  "Missing game history integration"
+);
 
 check(
   !readFile("src/app/page.tsx").includes("\"use client\""),
