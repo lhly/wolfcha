@@ -52,6 +52,9 @@ function ensureSchema(database: Database.Database) {
       winner TEXT,
       summary_json TEXT,
       state_json TEXT,
+      status TEXT,
+      updated_at INTEGER,
+      last_checkpoint_state_json TEXT,
       created_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS meta_kv (
@@ -59,4 +62,28 @@ function ensureSchema(database: Database.Database) {
       value TEXT NOT NULL
     );
   `);
+
+  ensureGameHistoryColumns(database);
+}
+
+type TableInfoRow = { name: string };
+
+type GameHistoryColumn = {
+  name: string;
+  definition: string;
+};
+
+const gameHistoryColumns: GameHistoryColumn[] = [
+  { name: "status", definition: "TEXT" },
+  { name: "updated_at", definition: "INTEGER" },
+  { name: "last_checkpoint_state_json", definition: "TEXT" },
+];
+
+function ensureGameHistoryColumns(database: Database.Database) {
+  const rows = database.prepare("PRAGMA table_info(game_history)").all() as TableInfoRow[];
+  const existing = new Set(rows.map((row) => row.name));
+  for (const column of gameHistoryColumns) {
+    if (existing.has(column.name)) continue;
+    database.exec(`ALTER TABLE game_history ADD COLUMN ${column.name} ${column.definition}`);
+  }
 }

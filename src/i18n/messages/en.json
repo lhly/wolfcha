@@ -2130,6 +2130,36 @@
       "testFail": "Connection test failed"
     }
   },
+  "recentGames": {
+    "title": "Recent Games",
+    "description": "View your latest 30 games and resume in-progress sessions.",
+    "button": "Recent Games",
+    "loading": "Loading recent games...",
+    "empty": "No games yet.",
+    "resume": "Resume",
+    "lastUpdated": "Last updated: {time}",
+    "dayLabel": "Day {day}",
+    "gameLabel": "Game #{id}",
+    "confirmSwitch": "This will pause your current game and switch to the selected one. Continue?",
+    "fetchFailed": "Failed to load recent games",
+    "resumeFailed": "Failed to resume game",
+    "missingCheckpoint": "No checkpoint found to resume",
+    "status": {
+      "inProgress": "In progress",
+      "completed": "Completed",
+      "active": "Active",
+      "current": "Current"
+    }
+  },
+  "totpGate": {
+    "title": "Enter TOTP Code",
+    "description": "Enter your current TOTP code to continue.",
+    "placeholder": "6-digit code",
+    "submit": "Verify and Enter",
+    "submitting": "Verifying...",
+    "empty": "Please enter your code",
+    "invalid": "Invalid code"
+  },
   "lowCreditModal": {
     "title": "Running Low on Credits",
     "description": "Your game credits are running low. Consider recharging for a better experience.",

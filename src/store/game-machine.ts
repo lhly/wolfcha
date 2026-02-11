@@ -8,6 +8,7 @@ import { atomWithStorage } from "jotai/utils";
 import type { GameState, Phase, Player, Role } from "@/types/game";
 import type { GameAnalysisData } from "@/types/analysis";
 import { createInitialGameState } from "@/lib/game-master";
+import { checkpointGameHistory } from "@/lib/game-history";
 import {
   clearPersistedGameState as clearPersistedGameStateRemote,
   savePersistedGameState,
@@ -16,7 +17,7 @@ import { getI18n } from "@/i18n/translator";
 
 // ============ 游戏状态持久化配置 ============
 
-const GAME_STATE_VERSION = 1;
+export const GAME_STATE_VERSION = 1;
 // Phases that indicate a game is in progress (for UI display purposes)
 const IN_PROGRESS_PHASES: Phase[] = [
   "NIGHT_START",
@@ -385,6 +386,7 @@ function doSaveGameState(state: GameState): void {
   
   try {
     void savePersistedGameState(state, GAME_STATE_VERSION);
+    void checkpointGameHistory(state);
     console.debug(`[wolfcha] Saved checkpoint at ${state.phase}, day ${state.day}`);
   } catch (error) {
     console.error("[wolfcha] Failed to save game state:", error);

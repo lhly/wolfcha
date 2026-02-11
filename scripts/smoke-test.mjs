@@ -43,6 +43,10 @@ check(
 );
 
 check(exists("src/lib/sqlite.ts"), "Missing sqlite helper.");
+check(
+  readFile("src/lib/sqlite.ts").includes("last_checkpoint_state_json"),
+  "Missing game_history checkpoint column"
+);
 
 if (exists("src/app/api/chat/route.ts")) {
   const chatRoute = readFile("src/app/api/chat/route.ts");
@@ -96,10 +100,39 @@ for (const file of apiFiles) {
 }
 
 check(
+  readFile("src/app/api/game-history/route.ts").includes("checkpoint"),
+  "Missing checkpoint action"
+);
+check(
+  readFile("src/lib/game-history.ts").includes("checkpointGameHistory"),
+  "Missing game history checkpoint helper"
+);
+check(
+  readFile("src/hooks/useGameLogic.ts").includes("startGameHistory"),
+  "Missing game history integration"
+);
+check(
+  exists("src/app/api/auth/totp/route.ts"),
+  "Missing TOTP auth route"
+);
+check(
+  readFile("src/middleware.ts").includes("totp"),
+  "Middleware should protect with totp cookie"
+);
+
+check(
   !readFile("src/app/page.tsx").includes("\"use client\""),
   "page.tsx should be server component."
 );
 check(exists("src/app/HomeClient.tsx"), "Missing HomeClient.tsx.");
+check(
+  exists("src/components/game/RecentGamesModal.tsx"),
+  "Missing RecentGamesModal component"
+);
+check(
+  readFile("src/app/HomeClient.tsx").includes("RecentGamesModal"),
+  "HomeClient should use RecentGamesModal"
+);
 check(
   readFile("src/store/game-machine.ts").includes("game-state-storage"),
   "game-machine should use sqlite storage helper."

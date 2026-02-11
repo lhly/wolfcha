@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const LOCALE_COOKIE = "wolfcha.locale";
+const TOTP_COOKIE = "wolfcha.totp";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static files, API routes, and paths that already have locale
-  if (
-    pathname.startsWith("/zh") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.includes(".")
-  ) {
+  if (pathname.startsWith("/api")) {
+    if (pathname.startsWith("/api/auth/totp")) {
+      return NextResponse.next();
+    }
+    const authed = request.cookies.get(TOTP_COOKIE)?.value === "1";
+    if (!authed) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
+
+  // Skip static files and paths that already have locale
+  if (pathname.startsWith("/zh") || pathname.startsWith("/_next") || pathname.includes(".")) {
     return NextResponse.next();
   }
 
@@ -43,5 +50,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|api|.*\\..*).*)"],
+  matcher: ["/api/:path*", "/((?!_next|.*\\..*).*)"],
 };
