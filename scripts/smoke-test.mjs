@@ -14,8 +14,20 @@ function readFile(relPath) {
   return fs.readFileSync(path.join(root, relPath), "utf8");
 }
 
+function readJson(relPath) {
+  return JSON.parse(readFile(relPath));
+}
+
 function exists(relPath) {
   return fs.existsSync(path.join(root, relPath));
+}
+
+function checkDoesNotThrow(fn, message) {
+  try {
+    fn();
+  } catch (error) {
+    errors.push(`${message}: ${error?.message ?? String(error)}`);
+  }
 }
 
 const removedPaths = [
@@ -205,6 +217,29 @@ check(
 check(
   readFile("src/i18n/messages/en.json").includes("phaseSpeechSummary"),
   "Missing phase speech summary i18n keys (en)."
+);
+
+const zhMessages = readJson("src/i18n/messages/zh.json");
+const enMessages = readJson("src/i18n/messages/en.json");
+const zhSystemPrompt = zhMessages?.gameMaster?.phaseSpeechSummary?.systemPrompt;
+const enSystemPrompt = enMessages?.gameMaster?.phaseSpeechSummary?.systemPrompt;
+const zhT = createTranslator({ locale: "zh", messages: zhMessages });
+const enT = createTranslator({ locale: "en", messages: enMessages });
+check(
+  typeof zhSystemPrompt === "string" && zhSystemPrompt.includes("输出 JSON 格式：'"),
+  "i18n zh systemPrompt should quote JSON example to avoid ICU parsing"
+);
+check(
+  typeof enSystemPrompt === "string" && enSystemPrompt.includes("Output JSON: '"),
+  "i18n en systemPrompt should quote JSON example to avoid ICU parsing"
+);
+checkDoesNotThrow(
+  () => zhT("gameMaster.phaseSpeechSummary.systemPrompt"),
+  "i18n zh systemPrompt should not throw"
+);
+checkDoesNotThrow(
+  () => enT("gameMaster.phaseSpeechSummary.systemPrompt"),
+  "i18n en systemPrompt should not throw"
 );
 
 if (errors.length > 0) {

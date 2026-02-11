@@ -1781,7 +1781,7 @@
       "fallbackText": "第{day}天：暂无摘要"
     },
     "phaseSpeechSummary": {
-      "systemPrompt": "你是狼人杀发言摘要员。请针对指定环节中每位发言玩家的内容总结1-2句话，保留座位号信息。不要捏造未发言玩家。\n\n输出 JSON 格式：{ \"summaries\": [ {\"seat\": 1, \"summary\": \"...\"} ] }",
+      "systemPrompt": "你是狼人杀发言摘要员。请针对指定环节中每位发言玩家的内容总结1-2句话，保留座位号信息。不要捏造未发言玩家。\n\n输出 JSON 格式：'{ \"summaries\": [ {\"seat\": 1, \"summary\": \"...\"} ] }'",
       "userPrompt": "【第{day}天】【环节：{phaseLabel}】发言记录：\n{transcript}\n\n请按座位号输出 JSON 摘要：",
       "phaseLabels": {
         "badge": "警徽竞选",
