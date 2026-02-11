@@ -111,6 +111,14 @@ check(
   readFile("src/hooks/useGameLogic.ts").includes("startGameHistory"),
   "Missing game history integration"
 );
+check(
+  exists("src/app/api/auth/totp/route.ts"),
+  "Missing TOTP auth route"
+);
+check(
+  readFile("src/middleware.ts").includes("totp"),
+  "Middleware should protect with totp cookie"
+);
 
 check(
   !readFile("src/app/page.tsx").includes("\"use client\""),

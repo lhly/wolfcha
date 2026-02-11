@@ -2151,6 +2151,15 @@
       "current": "当前进行中"
     }
   },
+  "totpGate": {
+    "title": "请输入动态口令",
+    "description": "请输入你的 TOTP 动态码以继续访问游戏。",
+    "placeholder": "6 位动态码",
+    "submit": "验证并进入",
+    "submitting": "验证中...",
+    "empty": "请输入动态口令",
+    "invalid": "动态口令无效"
+  },
   "lowCreditModal": {
     "title": "额度即将用尽",
     "description": "您的游戏额度较低，建议补充额度以获得更好的体验。",

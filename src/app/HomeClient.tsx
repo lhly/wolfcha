@@ -53,6 +53,7 @@ import { TutorialOverlay, type TutorialPayload } from "@/components/game/Tutoria
 import { DevConsole, DevModeButton } from "@/components/DevTools";
 import { SettingsModal } from "@/components/game/SettingsModal";
 import { RecentGamesModal } from "@/components/game/RecentGamesModal";
+import { Button } from "@/components/ui/button";
 
 import { buildSimpleAvatarUrl, getModelLogoUrl } from "@/lib/avatar-config";
 import { audioManager, makeAudioTaskId } from "@/lib/audio-manager";
@@ -141,9 +142,14 @@ function getRitualCueFromSystemMessage(content: string): { title: string; subtit
 type HomeClientProps = {
   initialLlm: { base_url: string; api_key: string; model: string; updated_at?: number } | null;
   initialGame: { version: number; state: GameState; saved_at: number } | null;
+  initialTotpAuthed?: boolean;
 };
 
-function HomeInner() {
+type HomeInnerProps = {
+  initialTotpAuthed: boolean;
+};
+
+function HomeInner({ initialTotpAuthed }: HomeInnerProps) {
   useLocalStorageMigration();
   const t = useTranslations();
   const router = useRouter();
@@ -537,6 +543,9 @@ function HomeInner() {
   const [isDevConsoleOpen, setIsDevConsoleOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRecentGamesOpen, setIsRecentGamesOpen] = useState(false);
+  const [totpAuthed, setTotpAuthed] = useState(initialTotpAuthed);
+  const [totpCode, setTotpCode] = useState("");
+  const [isTotpSubmitting, setIsTotpSubmitting] = useState(false);
   const [detailPlayer, setDetailPlayer] = useState<Player | null>(null);
   const [isRoleRevealOpen, setIsRoleRevealOpen] = useState(false);
   const [hasShownRoleReveal, setHasShownRoleReveal] = useState(false);
@@ -862,6 +871,32 @@ function HomeInner() {
     showTable,
     waitingForNextRound,
   ]);
+
+  const handleTotpSubmit = useCallback(async () => {
+    const code = totpCode.trim();
+    if (!code) {
+      toast(t("totpGate.empty"));
+      return;
+    }
+    setIsTotpSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/totp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(json.error ?? t("totpGate.invalid"));
+      }
+      setTotpAuthed(true);
+      window.location.reload();
+    } catch (error) {
+      toast(t("totpGate.invalid"), { description: String(error) });
+    } finally {
+      setIsTotpSubmitting(false);
+    }
+  }, [t, totpCode]);
 
   useEffect(() => {
     return () => {
@@ -1264,6 +1299,43 @@ function HomeInner() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-transparent">
       <GameBackground isNight={visualIsNight} isBlinking={!!dayNightBlinkPhase} />
+
+      {!totpAuthed && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur">
+          <div className="w-[92vw] max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-xl">
+            <div className="font-serif text-xl text-[var(--text-primary)]">
+              {t("totpGate.title")}
+            </div>
+            <div className="mt-2 text-sm text-[var(--text-secondary)]">
+              {t("totpGate.description")}
+            </div>
+            <div className="mt-5 space-y-3">
+              <input
+                value={totpCode}
+                onChange={(event) => setTotpCode(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void handleTotpSubmit();
+                  }
+                }}
+                placeholder={t("totpGate.placeholder")}
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                className="w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--color-accent)]"
+              />
+              <Button
+                type="button"
+                onClick={handleTotpSubmit}
+                disabled={isTotpSubmitting}
+                className="w-full"
+              >
+                {isTotpSubmitting ? t("totpGate.submitting") : t("totpGate.submit")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <motion.div
         className="wc-blink-underlay"
@@ -1787,7 +1859,7 @@ function HomeInner() {
   );
 }
 
-export default function HomeClient({ initialLlm, initialGame }: HomeClientProps) {
+export default function HomeClient({ initialLlm, initialGame, initialTotpAuthed }: HomeClientProps) {
   useMemo(() => {
     initLlmConfig(normalizeLlmConfig(initialLlm));
   }, [initialLlm]);
@@ -1799,7 +1871,7 @@ export default function HomeClient({ initialLlm, initialGame }: HomeClientProps)
 
   return (
     <Provider initialValues={initialValues}>
-      <HomeInner />
+      <HomeInner initialTotpAuthed={Boolean(initialTotpAuthed)} />
     </Provider>
   );
 }

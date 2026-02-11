@@ -1,4 +1,5 @@
 import HomeClient from "./HomeClient";
+import { cookies } from "next/headers";
 import { getDb } from "@/lib/sqlite";
 
 export const runtime = "nodejs";
@@ -7,6 +8,11 @@ type LlmRow = { base_url: string; api_key: string; model: string; updated_at: nu
 type GameRow = { version: number; state_json: string; saved_at: number };
 
 export default function Page() {
+  const authed = cookies().get("wolfcha.totp")?.value === "1";
+  if (!authed) {
+    return <HomeClient initialLlm={null} initialGame={null} initialTotpAuthed={false} />;
+  }
+
   const db = getDb();
   const llm = db.prepare("SELECT base_url, api_key, model, updated_at FROM llm_config WHERE id = 1").get() as
     | LlmRow
@@ -22,5 +28,5 @@ export default function Page() {
       }
     : null;
 
-  return <HomeClient initialLlm={llm ?? null} initialGame={initialGame} />;
+  return <HomeClient initialLlm={llm ?? null} initialGame={initialGame} initialTotpAuthed={true} />;
 }

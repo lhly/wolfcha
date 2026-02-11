@@ -2151,6 +2151,15 @@
       "current": "Current"
     }
   },
+  "totpGate": {
+    "title": "Enter TOTP Code",
+    "description": "Enter your current TOTP code to continue.",
+    "placeholder": "6-digit code",
+    "submit": "Verify and Enter",
+    "submitting": "Verifying...",
+    "empty": "Please enter your code",
+    "invalid": "Invalid code"
+  },
   "lowCreditModal": {
     "title": "Running Low on Credits",
     "description": "Your game credits are running low. Consider recharging for a better experience.",
