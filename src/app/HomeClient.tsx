@@ -1320,7 +1320,6 @@ function HomeInner({ initialTotpAuthed }: HomeInnerProps) {
                 }}
                 placeholder={t("totpGate.placeholder")}
                 inputMode="numeric"
-                maxLength={6}
                 autoFocus
                 className="w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--color-accent)]"
               />

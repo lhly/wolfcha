@@ -119,10 +119,36 @@ check(
   readFile("src/middleware.ts").includes("totp"),
   "Middleware should protect with totp cookie"
 );
-
 check(
-  !readFile("src/app/page.tsx").includes("\"use client\""),
-  "page.tsx should be server component."
+  readFile("src/lib/totp.ts").includes("TOTP_DIGITS"),
+  "totp.ts should read TOTP_DIGITS."
+);
+check(
+  readFile("src/lib/totp.ts").includes("TOTP_ALGORITHM"),
+  "totp.ts should read TOTP_ALGORITHM."
+);
+check(
+  readFile("src/lib/totp.ts").includes("createHmacKeyRaw"),
+  "totp.ts should use raw HMAC key derivation."
+);
+check(
+  readFile(".env.example").includes("TOTP_DIGITS"),
+  "Missing TOTP_DIGITS in .env.example."
+);
+check(
+  readFile(".env.example").includes("TOTP_ALGORITHM"),
+  "Missing TOTP_ALGORITHM in .env.example."
+);
+
+const pageFile = readFile("src/app/page.tsx");
+check(!pageFile.includes("\"use client\""), "page.tsx should be server component.");
+check(
+  pageFile.includes("async function Page"),
+  "page.tsx should be async to await cookies()."
+);
+check(
+  pageFile.includes("await cookies("),
+  "page.tsx should await cookies()."
 );
 check(exists("src/app/HomeClient.tsx"), "Missing HomeClient.tsx.");
 check(

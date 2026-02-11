@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 type LlmRow = { base_url: string; api_key: string; model: string; updated_at: number };
 type GameRow = { version: number; state_json: string; saved_at: number };
 
-export default function Page() {
-  const authed = cookies().get("wolfcha.totp")?.value === "1";
+export default async function Page() {
+  const cookieStore = await cookies();
+  const authed = cookieStore.get("wolfcha.totp")?.value === "1";
   if (!authed) {
     return <HomeClient initialLlm={null} initialGame={null} initialTotpAuthed={false} />;
   }

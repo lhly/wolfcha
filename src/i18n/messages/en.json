@@ -2152,9 +2152,9 @@
     }
   },
   "totpGate": {
-    "title": "Enter TOTP Code",
-    "description": "Enter your current TOTP code to continue.",
-    "placeholder": "6-digit code",
+    "title": "Enter One-Time Code",
+    "description": "Enter your one-time code to continue.",
+    "placeholder": "Enter one-time code",
     "submit": "Verify and Enter",
     "submitting": "Verifying...",
     "empty": "Please enter your code",

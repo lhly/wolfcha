@@ -2153,8 +2153,8 @@
   },
   "totpGate": {
     "title": "请输入动态口令",
-    "description": "请输入你的 TOTP 动态码以继续访问游戏。",
-    "placeholder": "6 位动态码",
+    "description": "请输入动态口令以继续访问游戏。",
+    "placeholder": "请输入动态口令",
     "submit": "验证并进入",
     "submitting": "验证中...",
     "empty": "请输入动态口令",
