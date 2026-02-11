@@ -164,6 +164,14 @@ check(
   "page.tsx should await cookies()."
 );
 check(exists("src/app/HomeClient.tsx"), "Missing HomeClient.tsx.");
+const welcomeScreenFile = readFile("src/components/game/WelcomeScreen.tsx");
+const canConfirmIndex = welcomeScreenFile.indexOf("const canConfirm");
+check(canConfirmIndex !== -1, "Missing canConfirm in WelcomeScreen.");
+const canConfirmSlice = welcomeScreenFile.slice(canConfirmIndex, canConfirmIndex + 300);
+check(
+  canConfirmSlice.includes("mounted"),
+  "WelcomeScreen should gate canConfirm with mounted to prevent hydration mismatch."
+);
 check(
   exists("src/components/game/RecentGamesModal.tsx"),
   "Missing RecentGamesModal component"

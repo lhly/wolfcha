@@ -392,8 +392,8 @@ export function WelcomeScreen({
   }, [playerCount, t]);
 
   const canConfirm = useMemo(() => {
-    return !!humanName.trim() && !isLoading && !isTransitioning && llmState.configured;
-  }, [humanName, isLoading, isTransitioning, llmState.configured]);
+    return mounted && !!humanName.trim() && !isLoading && !isTransitioning && llmState.configured;
+  }, [mounted, humanName, isLoading, isTransitioning, llmState.configured]);
 
   const isAnyModalOpen =
     isSetupOpen ||
