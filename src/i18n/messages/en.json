@@ -940,7 +940,7 @@
       "phaseSection": "【Current phase】\n{phaseHint}",
       "userNoTranscript": "(None yet. You are speaker #{speakOrder}.)",
       "userNoSelfSpeech": "(None)",
-      "user": "{gameContext}\n\n[Today's Discussion]\n{todayTranscript}\n\n[Your Speech Today]\n{selfSpeech}\n\n{phaseHintSection}\n\n[Speaking Order]\n{speakOrderHint}\n\nIt's your turn. Return a JSON object:\n{\n  \"speech\": [\"...\", \"...\"],\n  \"rationale\": {\n    \"evidence_tags\": [\"vote_history\", \"death_timeline\"],\n    \"counter\": \"...\",\n    \"consistency\": \"...\",\n    \"confidence\": 0.5\n  }\n}\nNo extra text or code blocks."
+      "user": "{gameContext}\n\n[Today's Discussion]\n{todayTranscript}\n\n[Your Speech Today]\n{selfSpeech}\n\n{phaseHintSection}\n\n[Speaking Order]\n{speakOrderHint}\n\nIt's your turn. Return a JSON object:\n'{'\n  \"speech\": [\"...\", \"...\"],\n  \"rationale\": '{'\n    \"evidence_tags\": [\"vote_history\", \"death_timeline\"],\n    \"counter\": \"...\",\n    \"consistency\": \"...\",\n    \"confidence\": 0.5\n  '}'\n'}'\nNo extra text or code blocks."
     },
     "vote": {
       "roleHint": {
