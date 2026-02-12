@@ -54,6 +54,10 @@ check(
   exists("src/components/game/LocalModelSettingsModal.tsx"),
   "Missing LocalModelSettingsModal component."
 );
+check(
+  readFile("src/components/game/LocalModelSettingsModal.tsx").includes("modelTags"),
+  "LocalModelSettingsModal should manage modelTags."
+);
 
 check(exists("src/lib/sqlite.ts"), "Missing sqlite helper.");
 check(

@@ -2105,11 +2105,11 @@
   },
   "localLlmSettings": {
     "title": "本地模型设置",
-    "description": "输入 OpenAI-compatible BaseUrl、API Key 与模型名称，用于本地游戏。",
+    "description": "输入 OpenAI-compatible BaseUrl、API Key 与模型列表，用于本地游戏。",
     "fields": {
       "baseUrl": "BaseUrl",
       "apiKey": "API Key",
-      "model": "Model"
+      "model": "模型"
     },
     "placeholders": {
       "apiKey": "sk-..."
@@ -2122,12 +2122,16 @@
       "save": "保存"
     },
     "errors": {
-      "missing": "BaseUrl、API Key 与 Model 不能为空"
+      "missing": "BaseUrl、API Key 与至少一个模型不能为空"
     },
     "toasts": {
       "saved": "已保存模型设置",
       "testSuccess": "连接测试成功",
-      "testFail": "连接测试失败"
+      "testFail": "连接测试失败",
+      "modelsAdjusted": "部分模型不可用，已自动调整。",
+      "modelsAdjustedDesc": "已移除：{models}",
+      "validationSkipped": "模型校验已跳过",
+      "validationSkippedDesc": "当前提供商不支持 /models，将在运行时校验。"
     }
   },
   "recentGames": {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeSlash, Wrench } from "@phosphor-icons/react";
+import { Eye, EyeSlash, Wrench, X } from "@phosphor-icons/react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,43 +26,124 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
   const t = useTranslations();
   const [baseUrl, setBaseUrl] = useState(LOCAL_LLM_DEFAULTS.baseUrl);
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState(LOCAL_LLM_DEFAULTS.model);
+  const [modelInput, setModelInput] = useState("");
+  const [modelTags, setModelTags] = useState<string[]>([]);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+
+  const normalizeTags = (values: string[]) =>
+    Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
+  const addTags = (raw: string) => {
+    const parts = raw.split(/[,\s]+/).map((part) => part.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    setModelTags((prev) => normalizeTags([...prev, ...parts]));
+    setModelInput("");
+  };
 
   useEffect(() => {
     if (!open) return;
     const existing = getLlmConfig() ?? getLlmConfigWithDefaults();
     setBaseUrl(existing.baseUrl);
     setApiKey(existing.apiKey);
-    setModel(existing.model);
+    const initialModels =
+      Array.isArray(existing.models) && existing.models.length > 0
+        ? existing.models
+        : existing.model
+          ? [existing.model]
+          : [LOCAL_LLM_DEFAULTS.model];
+    setModelTags(initialModels);
+    setModelInput("");
     void fetchLlmConfig().then((cfg) => {
       if (!cfg) return;
       setBaseUrl(cfg.baseUrl);
       setApiKey(cfg.apiKey);
-      setModel(cfg.model);
+      const nextModels =
+        Array.isArray(cfg.models) && cfg.models.length > 0
+          ? cfg.models
+          : cfg.model
+            ? [cfg.model]
+            : [LOCAL_LLM_DEFAULTS.model];
+      setModelTags(nextModels);
+      setModelInput("");
     });
   }, [open]);
 
   const handleSave = async () => {
-    if (!baseUrl.trim() || !model.trim() || !apiKey.trim()) {
+    const baseUrlValue = baseUrl.trim();
+    const apiKeyValue = apiKey.trim();
+    const candidates = normalizeTags([...modelTags, modelInput]);
+    if (!baseUrlValue || !apiKeyValue || candidates.length === 0) {
+      toast.error(t("localLlmSettings.errors.missing"));
+      return;
+    }
+
+    let validatedModels = [...candidates];
+    let removedModels: string[] = [];
+    let validationSkipped = false;
+
+    try {
+      const res = await fetch("/api/llm-models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base_url: baseUrlValue, api_key: apiKeyValue }),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { models?: string[] };
+        const providerModels = Array.isArray(json.models) ? json.models : [];
+        if (providerModels.length > 0) {
+          const map = new Map(providerModels.map((model) => [model.toLowerCase(), model]));
+          const matched = candidates
+            .map((model) => map.get(model.toLowerCase()))
+            .filter((model): model is string => Boolean(model));
+          removedModels = candidates.filter((model) => !map.has(model.toLowerCase()));
+          validatedModels = normalizeTags(matched);
+        }
+      } else {
+        validationSkipped = true;
+      }
+    } catch {
+      validationSkipped = true;
+    }
+
+    if (validationSkipped) {
+      toast(t("localLlmSettings.toasts.validationSkipped"), {
+        description: t("localLlmSettings.toasts.validationSkippedDesc"),
+      });
+    }
+
+    if (removedModels.length > 0) {
+      toast(t("localLlmSettings.toasts.modelsAdjusted"), {
+        description: t("localLlmSettings.toasts.modelsAdjustedDesc", {
+          models: removedModels.join(", "),
+        }),
+      });
+    }
+
+    if (validatedModels.length === 0) {
       toast.error(t("localLlmSettings.errors.missing"));
       return;
     }
 
     await saveLlmConfig({
-      baseUrl: baseUrl.trim(),
-      apiKey: apiKey.trim(),
-      model: model.trim(),
+      baseUrl: baseUrlValue,
+      apiKey: apiKeyValue,
+      model: validatedModels[0],
+      models: validatedModels,
     });
     toast.success(t("localLlmSettings.toasts.saved"));
+    setModelTags(validatedModels);
+    setModelInput("");
     onSaved?.();
     onOpenChange(false);
   };
 
   const handleTest = async () => {
     if (isTesting) return;
-    if (!baseUrl.trim() || !model.trim() || !apiKey.trim()) {
+    const baseUrlValue = baseUrl.trim();
+    const apiKeyValue = apiKey.trim();
+    const testModel = normalizeTags([...modelTags, modelInput])[0];
+    if (!baseUrlValue || !apiKeyValue || !testModel) {
       toast.error(t("localLlmSettings.errors.missing"));
       return;
     }
@@ -72,9 +153,9 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          baseUrl: baseUrl.trim(),
-          apiKey: apiKey.trim(),
-          model: model.trim(),
+          baseUrl: baseUrlValue,
+          apiKey: apiKeyValue,
+          model: testModel,
           messages: [{ role: "user", content: "ping" }],
           temperature: 0,
           max_tokens: 1,
@@ -147,12 +228,37 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
             <Label htmlFor="llm-model" className="text-xs">
               {t("localLlmSettings.fields.model")}
             </Label>
-            <Input
-              id="llm-model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder={LOCAL_LLM_DEFAULTS.model}
-            />
+            <div className="flex flex-wrap gap-2 rounded-md border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 text-sm">
+              {modelTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-primary)]"
+                >
+                  <span className="max-w-[160px] truncate">{tag}</span>
+                  <button
+                    type="button"
+                    onClick={() => setModelTags((prev) => prev.filter((item) => item !== tag))}
+                    className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="llm-model"
+                value={modelInput}
+                onChange={(e) => setModelInput(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === ",") {
+                    event.preventDefault();
+                    if (modelInput.trim()) addTags(modelInput);
+                  }
+                }}
+                placeholder={modelTags.length ? "" : LOCAL_LLM_DEFAULTS.model}
+                className="min-w-[120px] flex-1 bg-transparent text-sm outline-none"
+              />
+            </div>
           </div>
 
           <div className="flex gap-2 pt-2">

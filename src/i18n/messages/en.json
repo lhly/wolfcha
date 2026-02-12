@@ -2105,11 +2105,11 @@
   },
   "localLlmSettings": {
     "title": "Local model settings",
-    "description": "Provide an OpenAI-compatible BaseUrl, API Key, and model name for local play.",
+    "description": "Provide an OpenAI-compatible BaseUrl, API Key, and model list for local play.",
     "fields": {
       "baseUrl": "BaseUrl",
       "apiKey": "API Key",
-      "model": "Model"
+      "model": "Models"
     },
     "placeholders": {
       "apiKey": "sk-..."
@@ -2122,12 +2122,16 @@
       "save": "Save"
     },
     "errors": {
-      "missing": "BaseUrl, API Key, and Model are required"
+      "missing": "BaseUrl, API Key, and at least one model are required"
     },
     "toasts": {
       "saved": "Settings saved",
       "testSuccess": "Connection test succeeded",
-      "testFail": "Connection test failed"
+      "testFail": "Connection test failed",
+      "modelsAdjusted": "Some models unavailable. Auto-adjusted.",
+      "modelsAdjustedDesc": "Removed: {models}",
+      "validationSkipped": "Model validation skipped",
+      "validationSkippedDesc": "Provider does not support /models. Will validate at runtime."
     }
   },
   "recentGames": {

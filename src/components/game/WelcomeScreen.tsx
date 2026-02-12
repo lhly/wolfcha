@@ -247,9 +247,16 @@ export function WelcomeScreen({
   const [isCustomCharacterOpen, setIsCustomCharacterOpen] = useState(false);
   const selectionStorageKey = CUSTOM_CHARACTER_SELECTION_STORAGE_KEY;
   const initialLlmConfig = getLlmConfig() ?? getLlmConfigWithDefaults();
+  const initialModels =
+    Array.isArray(initialLlmConfig.models) && initialLlmConfig.models.length > 0
+      ? initialLlmConfig.models
+      : initialLlmConfig.model
+        ? [initialLlmConfig.model]
+        : [LOCAL_LLM_DEFAULTS.model];
   const [llmState, setLlmState] = useState(() => ({
     configured: Boolean(initialLlmConfig.apiKey && initialLlmConfig.baseUrl),
-    model: initialLlmConfig.model || LOCAL_LLM_DEFAULTS.model,
+    model: initialModels[0] ?? LOCAL_LLM_DEFAULTS.model,
+    models: initialModels,
   }));
 
   const readSelectionFromStorage = useCallback(() => {
@@ -297,11 +304,27 @@ export function WelcomeScreen({
   const refreshLlmState = useCallback(async () => {
     const cfg = await fetchLlmConfig();
     const effective = cfg ?? getLlmConfigWithDefaults();
+    const models =
+      Array.isArray(effective.models) && effective.models.length > 0
+        ? effective.models
+        : effective.model
+          ? [effective.model]
+          : [LOCAL_LLM_DEFAULTS.model];
     setLlmState({
       configured: Boolean(effective.apiKey && effective.baseUrl),
-      model: effective.model || LOCAL_LLM_DEFAULTS.model,
+      model: models[0] ?? LOCAL_LLM_DEFAULTS.model,
+      models,
     });
   }, []);
+
+  const modelLabel = useMemo(() => {
+    const models = llmState.models ?? [];
+    const primary = llmState.model || models[0] || LOCAL_LLM_DEFAULTS.model;
+    if (models.length > 1) {
+      return t("customKey.modelCount", { preview: primary, count: models.length - 1 });
+    }
+    return primary;
+  }, [llmState.model, llmState.models, t]);
 
   useEffect(() => {
     void refreshLlmState();
@@ -843,7 +866,7 @@ export function WelcomeScreen({
             >
               <Wrench size={16} />
               <span className="truncate max-w-[160px]">
-                {llmState.configured ? llmState.model : t("welcome.modelSettings.unset")}
+                {llmState.configured ? modelLabel : t("welcome.modelSettings.unset")}
               </span>
               <span className="opacity-70">
                 {llmState.configured ? t("welcome.modelSettings.configured") : t("welcome.modelSettings.setup")}
