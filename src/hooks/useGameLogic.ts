@@ -1603,10 +1603,16 @@ export function useGameLogic() {
         aiSeatOrder
       );
 
+      const publicRoleConfig = players.reduce((acc, p) => {
+        acc[p.role] = (acc[p.role] ?? 0) + 1;
+        return acc;
+      }, {} as Partial<Record<Role, number>>);
+
       let newState: GameState = {
         ...createInitialGameState(),
         scenario,
         players,
+        publicRoleConfig,
         phase: "NIGHT_START",
         day: 1,
         difficulty,

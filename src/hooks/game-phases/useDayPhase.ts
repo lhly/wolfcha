@@ -11,10 +11,12 @@ import {
   addSystemMessage,
   addPlayerMessage,
   killPlayer,
+  generateAISpeechSegmentsHardEval,
   generateAISpeechSegmentsStream,
   getNextAliveSeat,
 } from "@/lib/game-master";
-import { PHASE_CATEGORIES } from "@/lib/game-constants";
+import { AI_HARD_EVAL, PHASE_CATEGORIES } from "@/lib/game-constants";
+import { resolveAISpeechMode } from "@/lib/ai-speech-strategy";
 import { type FlowToken } from "@/lib/game-flow-controller";
 import { audioManager, makeAudioTaskId } from "@/lib/audio-manager";
 import { resolveVoiceId, type AppLocale } from "@/lib/voice-constants";
@@ -69,6 +71,12 @@ export function useDayPhase(
   const isSpeechLikePhase = (phase: Phase): boolean => {
     return PHASE_CATEGORIES.SPEECH_PHASES.includes(phase as typeof PHASE_CATEGORIES.SPEECH_PHASES[number]);
   };
+
+  const speechMode = resolveAISpeechMode({
+    enabled: AI_HARD_EVAL.ENABLED,
+    disableStreamingSpeech: AI_HARD_EVAL.DISABLE_STREAMING_SPEECH,
+  });
+  const useStreamingSpeech = speechMode === "stream";
 
   const buildPostSpeechState = useCallback((
     baseState: GameState,
@@ -156,6 +164,7 @@ export function useDayPhase(
     state: GameState,
     player: Player
   ) => {
+    if (!useStreamingSpeech) return;
     if (!["DAY_SPEECH", "DAY_PK_SPEECH", "DAY_BADGE_SPEECH"].includes(state.phase)) return;
     if (!player.agentProfile) return;
 
@@ -201,7 +210,7 @@ export function useDayPhase(
     } catch {
       setPrefetchedSpeech(null);
     }
-  }, [setPrefetchedSpeech]);
+  }, [setPrefetchedSpeech, useStreamingSpeech]);
 
   /** AI 发言（流式分段输出） */
   const runAISpeech = useCallback(async (
@@ -216,6 +225,33 @@ export function useDayPhase(
 
     if (currentSpeakingPlayerRef.current === player.playerId) {
       console.warn("[wolfcha] runAISpeech: already speaking for", player.displayName);
+      return;
+    }
+
+    if (!useStreamingSpeech) {
+      currentSpeakingPlayerRef.current = player.playerId;
+      setIsWaitingForAI(true);
+      setDialogue(player.displayName, t("dayPhase.organizing"), true);
+
+      try {
+        const segments = await generateAISpeechSegmentsHardEval(state, player);
+        const finalSegments = segments.length > 0 ? segments : [t("dayPhase.interrupted")];
+        setIsWaitingForAI(false);
+        initSpeechQueue(
+          finalSegments,
+          player,
+          options?.afterSpeech as ((s: unknown) => Promise<void>) | undefined
+        );
+      } catch {
+        initSpeechQueue(
+          [t("dayPhase.interrupted")],
+          player,
+          options?.afterSpeech as ((s: unknown) => Promise<void>) | undefined
+        );
+      } finally {
+        currentSpeakingPlayerRef.current = null;
+        setIsWaitingForAI(false);
+      }
       return;
     }
 
@@ -398,6 +434,7 @@ export function useDayPhase(
     resolveNextSpeaker,
     buildPostSpeechState,
     isSpeechLikePhase,
+    useStreamingSpeech,
     t,
   ]);
 

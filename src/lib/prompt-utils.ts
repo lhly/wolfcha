@@ -264,6 +264,154 @@ export const buildDailySummariesSection = (state: GameState): string => {
   return `<history>\n${lines.join("\n\n")}\n</history>`;
 };
 
+const buildPublicVoteGroups = (
+  votes: Record<string, number>,
+  players: Player[]
+): Record<string, number[]> => {
+  const grouped: Record<string, number[]> = {};
+  for (const [voterId, targetSeat] of Object.entries(votes)) {
+    if (typeof targetSeat !== "number") continue;
+    const voter = players.find((p) => p.playerId === voterId);
+    if (!voter) continue;
+    const targetKey = String(targetSeat + 1);
+    if (!grouped[targetKey]) grouped[targetKey] = [];
+    grouped[targetKey].push(voter.seat + 1);
+  }
+  for (const key of Object.keys(grouped)) {
+    grouped[key].sort((a, b) => a - b);
+  }
+  return grouped;
+};
+
+const buildPublicDeathTimeline = (state: GameState) => {
+  const timeline: Array<{ day: number; phase: "night" | "day"; seat: number; cause: string }> = [];
+
+  if (state.nightHistory) {
+    for (const [dayStr, record] of Object.entries(state.nightHistory)) {
+      const day = Number(dayStr);
+      if (!Number.isFinite(day)) continue;
+      const seats = new Set<number>();
+      if (Array.isArray(record.deaths)) {
+        record.deaths.forEach((d) => {
+          if (typeof d.seat === "number") seats.add(d.seat);
+        });
+      }
+      if (typeof record.wolfTarget === "number") seats.add(record.wolfTarget);
+      if (typeof record.witchPoison === "number") seats.add(record.witchPoison);
+
+      for (const seat of seats) {
+        const p = state.players.find((pl) => pl.seat === seat);
+        if (p && p.alive) continue;
+        timeline.push({ day, phase: "night", seat: seat + 1, cause: "night_death" });
+      }
+    }
+  }
+
+  if (state.dayHistory) {
+    for (const [dayStr, record] of Object.entries(state.dayHistory)) {
+      const day = Number(dayStr);
+      if (!Number.isFinite(day)) continue;
+      if (record.executed) {
+        timeline.push({ day, phase: "day", seat: record.executed.seat + 1, cause: "executed" });
+      }
+      if (record.hunterShot) {
+        timeline.push({ day, phase: "day", seat: record.hunterShot.targetSeat + 1, cause: "hunter_shot" });
+      }
+    }
+  }
+
+  return timeline.sort((a, b) => (a.day === b.day ? (a.phase === b.phase ? 0 : a.phase === "night" ? -1 : 1) : a.day - b.day));
+};
+
+const buildPublicVoteHistory = (state: GameState) => {
+  const history: Record<string, Record<string, unknown>> = {};
+
+  if (state.dailySummaryVoteData) {
+    for (const [dayStr, data] of Object.entries(state.dailySummaryVoteData)) {
+      const day = String(dayStr);
+      const entry: Record<string, unknown> = {};
+      if (data.sheriff_election) {
+        const votes: Record<string, number[]> = {};
+        for (const [target, voters] of Object.entries(data.sheriff_election.votes || {})) {
+          const targetNum = Number.parseInt(target, 10);
+          const targetKey = Number.isFinite(targetNum) ? String(targetNum + 1) : target;
+          votes[targetKey] = (voters || []).map((s) => s + 1).sort((a, b) => a - b);
+        }
+        entry.sheriff_election = {
+          winner: data.sheriff_election.winner + 1,
+          votes,
+        };
+      }
+      if (data.execution_vote) {
+        const votes: Record<string, number[]> = {};
+        for (const [target, voters] of Object.entries(data.execution_vote.votes || {})) {
+          const targetNum = Number.parseInt(target, 10);
+          const targetKey = Number.isFinite(targetNum) ? String(targetNum + 1) : target;
+          votes[targetKey] = (voters || []).map((s) => s + 1).sort((a, b) => a - b);
+        }
+        entry.execution_vote = {
+          eliminated: data.execution_vote.eliminated + 1,
+          votes,
+        };
+      }
+      if (Object.keys(entry).length > 0) {
+        history[day] = entry;
+      }
+    }
+  }
+
+  if (state.voteHistory) {
+    for (const [dayStr, votes] of Object.entries(state.voteHistory)) {
+      const day = String(dayStr);
+      const entry = history[day] || {};
+      if (!entry.execution_vote) {
+        const grouped = buildPublicVoteGroups(votes, state.players);
+        if (Object.keys(grouped).length > 0) {
+          const eliminated = state.dayHistory?.[Number(dayStr)]?.executed?.seat;
+          entry.execution_vote = {
+            ...(typeof eliminated === "number" ? { eliminated: eliminated + 1 } : {}),
+            votes: grouped,
+          };
+        }
+      }
+      if (Object.keys(entry).length > 0) history[day] = entry;
+    }
+  }
+
+  if (state.badge?.history) {
+    for (const [dayStr, votes] of Object.entries(state.badge.history)) {
+      const day = String(dayStr);
+      const entry = history[day] || {};
+      if (!entry.sheriff_election) {
+        const grouped = buildPublicVoteGroups(votes, state.players);
+        if (Object.keys(grouped).length > 0) {
+          entry.sheriff_election = { votes: grouped };
+        }
+      }
+      if (Object.keys(entry).length > 0) history[day] = entry;
+    }
+  }
+
+  return history;
+};
+
+export const buildPublicReasoningContext = (state: GameState): string => {
+  const roleConfig = state.publicRoleConfig ?? {};
+  const aliveSeats = state.players.filter((p) => p.alive).map((p) => p.seat + 1);
+  const deathTimeline = buildPublicDeathTimeline(state);
+  const voteHistory = buildPublicVoteHistory(state);
+
+  const publicFacts = {
+    role_config: roleConfig,
+    alive_count: aliveSeats.length,
+    alive_seats: aliveSeats,
+    death_timeline: deathTimeline,
+    vote_history: voteHistory,
+  };
+
+  return `<public_facts>\n${JSON.stringify(publicFacts, null, 2)}\n</public_facts>`;
+};
+
 export const buildPhaseSummariesSection = (state: GameState): string => {
   const summaries = state.phaseSpeechSummaries;
   if (!summaries || Object.keys(summaries).length === 0) return "";
@@ -755,6 +903,11 @@ alive_count: ${alivePlayers.length}
   const phaseSummariesSection = buildPhaseSummariesSection(state);
   if (phaseSummariesSection) {
     context += `\n\n${phaseSummariesSection}`;
+  }
+
+  const publicFactsSection = buildPublicReasoningContext(state);
+  if (publicFactsSection) {
+    context += `\n\n${publicFactsSection}`;
   }
 
   const systemAnnouncements = buildSystemAnnouncementsSinceDawn(state, 8);

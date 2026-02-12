@@ -252,6 +252,13 @@ function isValidGameState(state: unknown): state is GameState {
   if (typeof s.voteHistory !== "object" || s.voteHistory === null) return false;
   if (typeof s.dailySummaries !== "object" || s.dailySummaries === null) return false;
   if (typeof s.dailySummaryFacts !== "object" || s.dailySummaryFacts === null) return false;
+  if (
+    "publicRoleConfig" in s &&
+    s.publicRoleConfig !== undefined &&
+    (typeof s.publicRoleConfig !== "object" || s.publicRoleConfig === null)
+  ) {
+    return false;
+  }
   
   return true;
 }
@@ -276,6 +283,9 @@ function normalizeGameState(state: GameState): GameState {
     messages: Array.isArray(state.messages) ? state.messages : initial.messages,
     votes: state.votes && typeof state.votes === "object" ? state.votes : initial.votes,
     voteHistory: state.voteHistory && typeof state.voteHistory === "object" ? state.voteHistory : initial.voteHistory,
+    publicRoleConfig: state.publicRoleConfig && typeof state.publicRoleConfig === "object"
+      ? state.publicRoleConfig
+      : initial.publicRoleConfig,
     dailySummaries: state.dailySummaries && typeof state.dailySummaries === "object" ? state.dailySummaries : initial.dailySummaries,
     dailySummaryFacts: state.dailySummaryFacts && typeof state.dailySummaryFacts === "object" ? state.dailySummaryFacts : initial.dailySummaryFacts,
     badge: state.badge && typeof state.badge === "object" ? {
@@ -289,6 +299,10 @@ function normalizeGameState(state: GameState): GameState {
     } : initial.roleAbilities,
     winner: state.winner ?? null,
   };
+}
+
+export function normalizeGameStateForTest(state: GameState): GameState {
+  return normalizeGameState(state);
 }
 
 /**

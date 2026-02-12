@@ -204,6 +204,8 @@ export interface GameState {
       hunterShot?: { hunterSeat: number; targetSeat: number };
     }
   >;
+  // Public role configuration counts for this game (no player mapping)
+  publicRoleConfig?: Partial<Record<Role, number>>;
   dailySummaries: Record<number, string[]>; // day -> summary bullet list
   dailySummaryFacts: Record<number, DailySummaryFact[]>; // day -> structured facts
   dailySummaryVoteData?: Record<number, DailySummaryVoteData>;
