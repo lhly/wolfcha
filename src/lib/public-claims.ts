@@ -57,3 +57,19 @@ export function mergePublicClaims(existing: PublicClaim[], incoming: PublicClaim
 
   return merged;
 }
+
+export function renderPublicClaimsSection(
+  claims: PublicClaim[],
+  options: {
+    limit: number;
+    header: string;
+    disclaimer: string;
+    seatLabel: (seat: number) => string;
+  }
+): string {
+  const { limit, header, disclaimer, seatLabel } = options;
+  const list = claims.slice(-limit);
+  if (list.length === 0) return "";
+  const lines = list.map((c) => `- ${seatLabel(c.speakerSeat + 1)}: ${c.content} (${c.status})`);
+  return `<public_claims>\n${header}\n${disclaimer}\n${lines.join("\n")}\n</public_claims>`;
+}

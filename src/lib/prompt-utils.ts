@@ -3,6 +3,7 @@ import type { SystemPromptPart } from "@/game/core/types";
 import type { LLMMessage } from "./llm";
 import { getSystemMessages, getSystemPatterns } from "./game-texts";
 import { getI18n } from "@/i18n/translator";
+import { renderPublicClaimsSection } from "./public-claims";
 
 /**
  * Prompt helper utilities used by Phase prompts.
@@ -739,6 +740,16 @@ alive_count: ${alivePlayers.length}
   const summarySection = buildDailySummariesSection(state);
   if (summarySection) {
     context += `\n\n${summarySection}`;
+  }
+
+  const publicClaimsSection = renderPublicClaimsSection(state.publicClaims ?? [], {
+    limit: 12,
+    header: t("promptUtils.publicClaims.header"),
+    disclaimer: t("promptUtils.publicClaims.disclaimer"),
+    seatLabel: (seat) => t("promptUtils.gameContext.seatLabel", { seat }),
+  });
+  if (publicClaimsSection) {
+    context += `\n\n${publicClaimsSection}`;
   }
 
   const phaseSummariesSection = buildPhaseSummariesSection(state);
