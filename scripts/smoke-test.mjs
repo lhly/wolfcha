@@ -60,6 +60,10 @@ check(
   readFile("src/lib/sqlite.ts").includes("last_checkpoint_state_json"),
   "Missing game_history checkpoint column"
 );
+check(
+  readFile("src/lib/sqlite.ts").includes("models_json"),
+  "Missing llm_config models_json column"
+);
 
 if (exists("src/app/api/chat/route.ts")) {
   const chatRoute = readFile("src/app/api/chat/route.ts");
@@ -103,6 +107,7 @@ if (exists("src/lib/llm.ts")) {
 
 const apiFiles = [
   "src/app/api/local-config/route.ts",
+  "src/app/api/llm-models/route.ts",
   "src/app/api/game-state/route.ts",
   "src/app/api/custom-characters/route.ts",
   "src/app/api/game-history/route.ts",
@@ -115,6 +120,14 @@ for (const file of apiFiles) {
 check(
   readFile("src/app/api/game-history/route.ts").includes("checkpoint"),
   "Missing checkpoint action"
+);
+check(
+  readFile("src/app/api/local-config/route.ts").includes("models_json"),
+  "local-config route should handle models_json"
+);
+check(
+  readFile("src/app/api/llm-models/route.ts").includes("/models"),
+  "llm-models route should call /models"
 );
 check(
   readFile("src/lib/game-history.ts").includes("checkpointGameHistory"),

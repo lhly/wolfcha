@@ -23,6 +23,7 @@ function ensureSchema(database: Database.Database) {
       base_url TEXT NOT NULL,
       api_key TEXT NOT NULL,
       model TEXT NOT NULL,
+      models_json TEXT,
       updated_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS game_state (
@@ -63,10 +64,29 @@ function ensureSchema(database: Database.Database) {
     );
   `);
 
+  ensureLlmConfigColumns(database);
   ensureGameHistoryColumns(database);
 }
 
 type TableInfoRow = { name: string };
+
+type LlmConfigColumn = {
+  name: string;
+  definition: string;
+};
+
+const llmConfigColumns: LlmConfigColumn[] = [
+  { name: "models_json", definition: "TEXT" },
+];
+
+function ensureLlmConfigColumns(database: Database.Database) {
+  const rows = database.prepare("PRAGMA table_info(llm_config)").all() as TableInfoRow[];
+  const existing = new Set(rows.map((row) => row.name));
+  for (const column of llmConfigColumns) {
+    if (existing.has(column.name)) continue;
+    database.exec(`ALTER TABLE llm_config ADD COLUMN ${column.name} ${column.definition}`);
+  }
+}
 
 type GameHistoryColumn = {
   name: string;

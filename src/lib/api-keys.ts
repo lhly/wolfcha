@@ -50,7 +50,8 @@ export function getGeneratorModel(): string {
 
 export function setGeneratorModel(model: string) {
   const cfg = getLlmConfigWithDefaults();
-  void saveLlmConfig({ ...cfg, model: model.trim() });
+  const trimmed = model.trim();
+  void saveLlmConfig({ ...cfg, model: trimmed, models: trimmed ? [trimmed] : cfg.models });
 }
 
 export function getSummaryModel(): string {
@@ -59,7 +60,8 @@ export function getSummaryModel(): string {
 
 export function setSummaryModel(model: string) {
   const cfg = getLlmConfigWithDefaults();
-  void saveLlmConfig({ ...cfg, model: model.trim() });
+  const trimmed = model.trim();
+  void saveLlmConfig({ ...cfg, model: trimmed, models: trimmed ? [trimmed] : cfg.models });
 }
 
 export function getReviewModel(): string {
@@ -68,18 +70,23 @@ export function getReviewModel(): string {
 
 export function setReviewModel(model: string) {
   const cfg = getLlmConfigWithDefaults();
-  void saveLlmConfig({ ...cfg, model: model.trim() });
+  const trimmed = model.trim();
+  void saveLlmConfig({ ...cfg, model: trimmed, models: trimmed ? [trimmed] : cfg.models });
 }
 
 export function getSelectedModels(): string[] {
-  const model = getLlmConfigWithDefaults().model;
-  return model ? [model] : [];
+  const cfg = getLlmConfigWithDefaults();
+  if (Array.isArray(cfg.models) && cfg.models.length > 0) return cfg.models;
+  return cfg.model ? [cfg.model] : [];
 }
 
 export function setSelectedModels(models: string[]) {
-  if (models.length === 0) return;
+  const normalized = Array.from(
+    new Set(models.map((m) => String(m ?? "").trim()).filter(Boolean))
+  );
+  if (normalized.length === 0) return;
   const cfg = getLlmConfigWithDefaults();
-  void saveLlmConfig({ ...cfg, model: models[0].trim() });
+  void saveLlmConfig({ ...cfg, model: normalized[0], models: normalized });
 }
 
 export function isCustomKeyEnabled(): boolean {
