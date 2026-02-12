@@ -151,6 +151,10 @@ check(
   "Missing game history checkpoint helper"
 );
 check(
+  readFile("src/app/api/player-reviews/route.ts").includes("target_seat"),
+  "player-reviews route should handle target_seat"
+);
+check(
   readFile("src/hooks/useGameLogic.ts").includes("startGameHistory"),
   "Missing game history integration"
 );
