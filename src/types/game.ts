@@ -1,3 +1,5 @@
+import type { PublicClaim } from "@/types/public-claims";
+
 export type Role = "Villager" | "Werewolf" | "Seer" | "Witch" | "Hunter" | "Guard";
 
 export type DifficultyLevel = "easy" | "normal" | "hard";
@@ -206,6 +208,7 @@ export interface GameState {
   dailySummaryFacts: Record<number, DailySummaryFact[]>; // day -> structured facts
   dailySummaryVoteData?: Record<number, DailySummaryVoteData>;
   phaseSpeechSummaries?: Record<number, PhaseSpeechSummaryDay>;
+  publicClaims?: PublicClaim[];
   nightActions: {
     guardTarget?: number;        // 守卫保护的目标
     lastGuardTarget?: number;    // 上一晚守卫保护的目标（不能连续保护同一人）

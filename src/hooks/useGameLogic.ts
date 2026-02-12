@@ -32,6 +32,7 @@ import {
   checkWinCondition,
   killPlayer,
   generateDailySummary,
+  generatePublicClaimsFromDay,
   generatePhaseSpeechSummary,
   getNextAliveSeat,
 } from "@/lib/game-master";
@@ -55,6 +56,7 @@ import { gameSessionTracker } from "@/lib/game-session-tracker";
 import { isCustomKeyEnabled } from "@/lib/api-keys";
 import { isQuotaExhaustedMessage } from "@/lib/llm";
 import { aiLogger } from "@/lib/ai-logger";
+import { mergePublicClaimsSafe } from "@/lib/public-claims";
 
 // 子模块
 import { useDialogueManager, type DialogueState } from "./useDialogueManager";
@@ -424,6 +426,15 @@ export function useGameLogic() {
       try {
         const summary = await generateDailySummary(state);
         if (!summary || summary.bullets.length === 0) return state;
+
+        let publicClaims = state.publicClaims;
+        try {
+          const claims = await generatePublicClaimsFromDay(state);
+          publicClaims = mergePublicClaimsSafe(state.publicClaims, claims);
+        } catch {
+          publicClaims = state.publicClaims;
+        }
+
         return {
           ...state,
           dailySummaries: { ...state.dailySummaries, [state.day]: summary.bullets },
@@ -432,6 +443,7 @@ export function useGameLogic() {
             ...(state.dailySummaryVoteData ?? {}),
             ...(summary.voteData ? { [state.day]: summary.voteData } : {}),
           },
+          publicClaims,
         };
       } catch {
         return state;
@@ -776,6 +788,7 @@ export function useGameLogic() {
       dailySummaryFacts: summarized.dailySummaryFacts,
       dailySummaryVoteData: summarized.dailySummaryVoteData ?? nextState.dailySummaryVoteData,
       phaseSpeechSummaries: summarized.phaseSpeechSummaries ?? nextState.phaseSpeechSummaries,
+      publicClaims: summarized.publicClaims ?? nextState.publicClaims,
     };
 
     await runNightPhaseAction(mergedState, token, "START_NIGHT");

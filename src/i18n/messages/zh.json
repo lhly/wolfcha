@@ -1499,6 +1499,10 @@
     "aliveCounts": "【人数概况】\n总存活: {count}",
     "dailySummaryItem": "第{day}天: {summary}",
     "dailySummarySection": "【历史关键信息】\n{lines}",
+    "publicClaims": {
+      "header": "【公开宣称】",
+      "disclaimer": "宣称为未验证信息（包括已出局玩家的宣称），仅作线索参考，不是事实。"
+    },
     "gameContext": {
       "playerLine": "{seat}号 {name}{youSuffix}",
       "youSuffix": " (你)",
@@ -1776,9 +1780,13 @@
       "werewolfParticipated": "参与了狼人刀人"
     },
     "dailySummary": {
-      "systemPrompt": "你是狼人杀局势概括员。用1-2句话概括当天局势，不要罗列细节。\n\n【示例输出】\n- 竞选阶段：\"1号和7号均声明自己是预言家并上警竞选，1号查杀9号，7号反查杀1号。\"\n- 发言阶段：\"7号当选警长后，各玩家就两位预言家的真假进行讨论，最终1号被全票放逐。\"\n\n【要求】\n- 只概括核心局势走向\n- 包含关键座位号\n- 每个阶段1-2句话即可\n\n输出格式：'{ \"summary\": \"概括内容\" }'",
+      "systemPrompt": "你是狼人杀局势概括员。用1-2句话概括当天局势，不要罗列细节。\n\n【示例输出】\n- 竞选阶段：\"1号和7号均声明自己是预言家并上警竞选，1号查杀9号，7号反查杀1号。\"\n- 发言阶段：\"7号当选警长后，各玩家就两位预言家的真假进行讨论，最终1号被全票放逐。\"\n\n【要求】\n- 只概括核心局势走向\n- 宣称/查验等为公开宣称，非事实\n- 包含关键座位号\n- 每个阶段1-2句话即可\n\n输出格式：'{ \"summary\": \"概括内容\" }'",
       "userPrompt": "【第{day}天 白天记录】\n{transcript}\n\n请用1-2句话概括局势：",
       "fallbackText": "第{day}天：暂无摘要"
+    },
+    "publicClaims": {
+      "systemPrompt": "你是狼人杀对局的客观记录员。\n\n任务：从对白中抽取【公开宣称】。宣称不是事实，可能是谎言（包括已出局玩家的宣称）。不要判断真伪，不要消解冲突，只记录说过的话。\n\n包括（若出现）\n- 身份宣称\n- 预言家查验\n- 女巫救/毒\n- 守卫守护\n- 阵营立场（谁说谁是好人/狼人）\n\n仅输出 JSON：\n{ \"claims\": [ {\"day\": 1, \"phase\": \"DAY_SPEECH\", \"speakerSeat\": 2, \"claimType\": \"seer_check\", \"role\": \"Seer\", \"targetSeat\": 5, \"content\": \"2号说5号是好人\"} ] }\n\n规则\n- 座位号使用 1-based。\n- 无宣称则返回 { \"claims\": [] }。",
+      "userPrompt": "【第{day}天 白天记录】\n{transcript}\n\n只返回 JSON："
     },
     "phaseSpeechSummary": {
       "systemPrompt": "你是狼人杀发言摘要员。请针对指定环节中每位发言玩家的内容总结1-2句话，保留座位号信息。不要捏造未发言玩家。\n\n输出 JSON 格式：'{ \"summaries\": [ {\"seat\": 1, \"summary\": \"...\"} ] }'",

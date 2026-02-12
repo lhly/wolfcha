@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from "uuid";
 import { generateCompletion, generateCompletionBatch, generateCompletionStream, mergeOptionsFromModelRef, stripMarkdownCodeFences, type LLMMessage } from "./llm";
 import type { ChatCompletionResponse } from "./llm";
 import { StreamingSpeechParser } from "./streaming-speech-parser";
+import type { PublicClaim } from "@/types/public-claims";
+import { parsePublicClaimsResponse } from "./public-claims";
 import {
   type GameState,
   type Player,
@@ -165,6 +167,7 @@ export function createInitialGameState(): GameState {
     dailySummaryFacts: {},
     dailySummaryVoteData: {},
     phaseSpeechSummaries: {},
+    publicClaims: [],
     nightActions: {},
     roleAbilities: {
       witchHealUsed: false,
@@ -698,6 +701,71 @@ export async function generateDailySummary(
     .trim();
 
   return { bullets: fallback ? [fallback] : [], facts: [], voteData };
+}
+
+export async function generatePublicClaimsFromDay(state: GameState): Promise<PublicClaim[]> {
+  const { t } = getI18n();
+  if (state.day <= 0) return [];
+  const startTime = Date.now();
+  const summaryModel = getSummaryModel();
+  const dayBreakShort = t("system.dayBreakShort");
+  const systemSpeaker = t("speakers.system");
+
+  const dayStartIndex = (() => {
+    for (let i = state.messages.length - 1; i >= 0; i--) {
+      const m = state.messages[i];
+      if (m.isSystem && m.content === dayBreakShort) return i;
+    }
+    return 0;
+  })();
+
+  const dayMessages = state.messages.slice(dayStartIndex);
+  const transcript = dayMessages
+    .map((m) => {
+      if (m.isSystem) return `${systemSpeaker}: ${m.content}`;
+      const player = state.players.find((p) => p.playerId === m.playerId);
+      const seatLabel = player ? t("mentions.seatLabel", { seat: player.seat + 1 }) : "";
+      const nameLabel = player?.displayName || m.playerName;
+      const speaker = seatLabel ? `${seatLabel} ${nameLabel}`.trim() : nameLabel;
+      return `${speaker}: ${m.content}`;
+    })
+    .join("\n")
+    .slice(0, 15000);
+
+  if (!transcript.trim()) return [];
+
+  const system = t("gameMaster.publicClaims.systemPrompt");
+  const user = t("gameMaster.publicClaims.userPrompt", { day: state.day, transcript });
+  const messages: LLMMessage[] = [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ];
+
+  const result = await generateCompletion({
+    model: summaryModel,
+    messages,
+    temperature: GAME_TEMPERATURE.SUMMARY,
+    response_format: { type: "json_object" },
+  });
+
+  const cleaned = stripMarkdownCodeFences(result.content).trim();
+
+  await aiLogger.log({
+    type: "public_claims",
+    request: {
+      model: summaryModel,
+      messages,
+    },
+    response: {
+      content: cleaned,
+      raw: result.content,
+      rawResponse: JSON.stringify(result.raw, null, 2),
+      finishReason: result.raw.choices?.[0]?.finish_reason,
+      duration: Date.now() - startTime,
+    },
+  });
+
+  return parsePublicClaimsResponse(cleaned);
 }
 
 export async function generatePhaseSpeechSummary(

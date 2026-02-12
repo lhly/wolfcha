@@ -1499,6 +1499,10 @@
     "aliveCounts": "【Player count】\nAlive: {count}",
     "dailySummaryItem": "Day {day}: {summary}",
     "dailySummarySection": "【Key history】\n{lines}",
+    "publicClaims": {
+      "header": "【Public claims】",
+      "disclaimer": "Claims are unverified statements (including from eliminated players). Treat as evidence, not facts."
+    },
     "gameContext": {
       "playerLine": "Seat {seat} {name}{youSuffix}",
       "youSuffix": " (you)",
@@ -1776,9 +1780,13 @@
       "werewolfParticipated": "Participated in wolf kill"
     },
     "dailySummary": {
-      "systemPrompt": "You are an objective Werewolf game recorder.\n\nTask: Compress the given record into BULLET LIST for long-term memory.\n\nCore principles\n- Objectively record \"who said what, who did what\". No judgments.\n- Preserve original points and stances, not your opinions.\n\nMust include (ALL required)\n1. Night result: peaceful night / who died / cause of death\n2. Sheriff result: who ran, who won, vote counts\n3. Role claims: who claimed what role, what checks reported\n4. Each speaking player's core viewpoint (1 sentence summary)\n5. Alignment stances: who supported whom, who questioned whom\n6. Vote result: who was exiled, vote distribution\n\nFormat requirements\n- Must include seat numbers (e.g., \"Seat 2\")\n- Keep each bullet short\n- 6-12 bullets required\n- Ensure EVERY speaking player is recorded\n\nOutput format: strictly return JSON:\n'{' \"bullets\": [\"Point 1\", \"Point 2\", ...] '}'",
+      "systemPrompt": "You are an objective Werewolf game recorder.\n\nTask: Compress the given record into BULLET LIST for long-term memory.\n\nCore principles\n- Objectively record \"who said what, who did what\". No judgments.\n- Preserve original points and stances, not your opinions.\n- Role claims and check results are public claims, NOT verified facts.\n\nMust include (ALL required)\n1. Night result: peaceful night / who died / cause of death\n2. Sheriff result: who ran, who won, vote counts\n3. Role claims: who claimed what role, what checks reported\n4. Each speaking player's core viewpoint (1 sentence summary)\n5. Alignment stances: who supported whom, who questioned whom\n6. Vote result: who was exiled, vote distribution\n\nFormat requirements\n- Must include seat numbers (e.g., \"Seat 2\")\n- Keep each bullet short\n- 6-12 bullets required\n- Ensure EVERY speaking player is recorded\n\nOutput format: strictly return JSON:\n'{' \"bullets\": [\"Point 1\", \"Point 2\", ...] '}'",
       "userPrompt": "【Day {day} Daytime Log】\n{transcript}\n\nStrictly return JSON:",
       "fallbackText": "Day {day}: No summary available"
+    },
+    "publicClaims": {
+      "systemPrompt": "You are an objective Werewolf game recorder.\n\nTask: Extract PUBLIC CLAIMS from the transcript. Claims are unverified statements and may be lies (including from eliminated players). Do NOT infer truth or resolve conflicts; record what was said.\n\nInclude (if mentioned)\n- role claims\n- seer checks (who checked whom and claimed result)\n- witch save/poison claims\n- guard protect claims\n- alignment statements (who says who is good/evil)\n\nOutput JSON only:\n{ \"claims\": [ {\"day\": 1, \"phase\": \"DAY_SPEECH\", \"speakerSeat\": 2, \"claimType\": \"seer_check\", \"role\": \"Seer\", \"targetSeat\": 5, \"content\": \"Seat 2 said Seat 5 is good\"} ] }\n\nRules\n- Use 1-based seat numbers in output.\n- If no claims, return { \"claims\": [] }.",
+      "userPrompt": "【Day {day} Daytime Log】\n{transcript}\n\nStrictly return JSON:"
     },
     "phaseSpeechSummary": {
       "systemPrompt": "You are a speech summarizer for Werewolf. For the specified phase, summarize each speaking player's content in 1-2 sentences and keep seat numbers. Do not invent players who did not speak.\n\nOutput JSON: '{ \"summaries\": [ {\"seat\": 1, \"summary\": \"...\"} ] }'",

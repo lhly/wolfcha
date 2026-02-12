@@ -1,34 +1,18 @@
-export type PublicClaimStatus = "unverified" | "contested" | "corroborated" | "disproved";
-export type PublicClaimType =
-  | "role_claim"
-  | "seer_check"
-  | "witch_save"
-  | "witch_poison"
-  | "guard_protect"
-  | "alignment_statement"
-  | "other";
-export type PublicClaimSource = "summary" | "regex" | "manual";
-export type PublicRole =
-  | "Seer"
-  | "Witch"
-  | "Guard"
-  | "Hunter"
-  | "Villager"
-  | "Werewolf"
-  | "Unknown";
+import type {
+  PublicClaim,
+  PublicClaimStatus,
+  PublicClaimType,
+  PublicClaimSource,
+  PublicRole,
+} from "@/types/public-claims";
 
-export type PublicClaim = {
-  id: string;
-  day: number;
-  phase: string;
-  speakerSeat: number;
-  claimType: PublicClaimType;
-  role?: PublicRole;
-  targetSeat?: number;
-  content: string;
-  status: PublicClaimStatus;
-  source: PublicClaimSource;
-};
+export type {
+  PublicClaim,
+  PublicClaimStatus,
+  PublicClaimType,
+  PublicClaimSource,
+  PublicRole,
+} from "@/types/public-claims";
 
 const claimKey = (c: PublicClaim) =>
   `${c.day}|${c.phase}|${c.speakerSeat}|${c.claimType}|${c.role ?? ""}|${c.targetSeat ?? ""}`;
@@ -56,6 +40,53 @@ export function mergePublicClaims(existing: PublicClaim[], incoming: PublicClaim
   }
 
   return merged;
+}
+
+export function mergePublicClaimsSafe(
+  existing: PublicClaim[] | undefined,
+  incoming: PublicClaim[]
+): PublicClaim[] {
+  return mergePublicClaims(existing ?? [], incoming);
+}
+
+const makeId = (): string => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+export function parsePublicClaimsResponse(raw: string): PublicClaim[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const claims = Array.isArray((parsed as any)?.claims) ? (parsed as any).claims : [];
+  return claims
+    .filter((c: any) => typeof c?.day === "number" && typeof c?.speakerSeat === "number")
+    .map((c: any): PublicClaim => {
+      const speakerSeat = c.speakerSeat - 1;
+      const targetSeat =
+        typeof c.targetSeat === "number" ? c.targetSeat - 1 : undefined;
+      const status = (c.status as PublicClaimStatus) ?? "unverified";
+      const role = (c.role as PublicRole) ?? "Unknown";
+      const content = String(c.content ?? "").trim();
+      return {
+        id: makeId(),
+        day: c.day,
+        phase: String(c.phase ?? ""),
+        speakerSeat,
+        claimType: (c.claimType as PublicClaimType) ?? "other",
+        role,
+        targetSeat,
+        content,
+        status,
+        source: "summary",
+      };
+    })
+    .filter((c) => c.content.length > 0 && Number.isFinite(c.speakerSeat));
 }
 
 export function renderPublicClaimsSection(

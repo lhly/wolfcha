@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mergePublicClaims, renderPublicClaimsSection, type PublicClaim } from "../src/lib/public-claims";
+import {
+  mergePublicClaims,
+  mergePublicClaimsSafe,
+  parsePublicClaimsResponse,
+  renderPublicClaimsSection,
+  type PublicClaim,
+} from "../src/lib/public-claims";
 
 test("mergePublicClaims dedupes same-speaker same-claim and marks contested role-claims", () => {
   const base: PublicClaim[] = [
@@ -48,6 +54,24 @@ test("mergePublicClaims dedupes same-speaker same-claim and marks contested role
   assert.ok(statuses.every((s) => s === "contested"));
 });
 
+test("mergePublicClaimsSafe defaults existing list", () => {
+  const incoming: PublicClaim[] = [
+    {
+      id: "a",
+      day: 1,
+      phase: "DAY_SPEECH",
+      speakerSeat: 0,
+      claimType: "alignment_statement",
+      content: "Seat 1 said X",
+      status: "unverified",
+      source: "summary",
+    },
+  ];
+  const merged = mergePublicClaimsSafe(undefined, incoming);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].content, "Seat 1 said X");
+});
+
 test("renderPublicClaimsSection emits disclaimer and limits items", () => {
   const claims: PublicClaim[] = Array.from({ length: 3 }).map((_, i) => ({
     id: String(i),
@@ -68,4 +92,12 @@ test("renderPublicClaimsSection emits disclaimer and limits items", () => {
   assert.ok(out.includes("Public claims"));
   assert.ok(out.includes("Claims are unverified"));
   assert.equal(out.split("\n").filter((l) => l.startsWith("- ")).length, 2);
+});
+
+test("parsePublicClaimsResponse accepts claims list and defaults status", () => {
+  const raw =
+    '{"claims":[{"day":1,"phase":"DAY_SPEECH","speakerSeat":2,"claimType":"seer_check","targetSeat":6,"content":"Seat 2 said Seat 6 is good"}]}';
+  const parsed = parsePublicClaimsResponse(raw);
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].status, "unverified");
 });
