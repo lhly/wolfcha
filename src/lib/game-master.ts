@@ -27,6 +27,7 @@ import { PhaseManager } from "@/game/core/PhaseManager";
 import type { PromptResult } from "@/game/core/types";
 import { buildCachedSystemMessageFromParts } from "./prompt-utils";
 import { getI18n } from "@/i18n/translator";
+import { evaluateVoteDecision, parseVoteDecision } from "./ai-eval";
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -1376,33 +1377,57 @@ export async function generateAIVote(
   const { messages } = buildMessagesForPrompt(prompt);
 
   let result: { content: string; raw: ChatCompletionResponse };
-  try {
-    result = await generateCompletion(mergeOptionsFromModelRef(player.agentProfile!.modelRef, {
-      model: player.agentProfile!.modelRef.model,
-      messages,
-      temperature: GAME_TEMPERATURE.ACTION,
-      response_format: { type: "json_object" },
-    }));
+  let parsedResult: { seat: number; reason: string } | null = null;
+  let evalResult: { ok: boolean; reasons: string[] } | null = null;
+  let cleanedVote = "";
+  let rawContent = "";
+  let lastRaw: ChatCompletionResponse | null = null;
+  let finishReason: string | undefined;
+  const baseMessages = messages;
 
-    const rawContent = result.content;
-    const cleanedVote = stripMarkdownCodeFences(rawContent);
-    const cleaned = cleanedVote.trim();
-    
-    let parsedResult: { seat: number; reason: string } | null = null;
-    
-    try {
-      const parsed = JSON.parse(cleaned) as { seat?: number; reason?: string };
-      const seat = typeof parsed.seat === "number" ? parsed.seat - 1 : NaN;
+  try {
+    let attemptMessages = baseMessages;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      result = await generateCompletion(mergeOptionsFromModelRef(player.agentProfile!.modelRef, {
+        model: player.agentProfile!.modelRef.model,
+        messages: attemptMessages,
+        temperature: GAME_TEMPERATURE.ACTION,
+        response_format: { type: "json_object" },
+      }));
+
+      lastRaw = result.raw;
+      finishReason = result.raw.choices?.[0]?.finish_reason;
+      rawContent = result.content;
+      cleanedVote = stripMarkdownCodeFences(rawContent);
+      const cleaned = cleanedVote.trim();
+
+      const parsed = parseVoteDecision(cleaned);
       const validSeats = alivePlayers.map((p) => p.seat);
-      if (Number.isFinite(seat) && validSeats.includes(seat)) {
-        const reason = typeof parsed.reason === "string" ? parsed.reason.trim() : "";
-        parsedResult = { seat, reason: reason || t("gameMaster.voteFallback.missingReason") };
+
+      if (parsed) {
+        const seatIndex = typeof parsed.seat === "number" ? parsed.seat - 1 : NaN;
+        if (!Number.isFinite(seatIndex) || !validSeats.includes(seatIndex)) {
+          evalResult = { ok: false, reasons: ["seat_invalid"] };
+        } else {
+          evalResult = evaluateVoteDecision(parsed);
+          if (evalResult.ok) {
+            const reason = parsed.reason?.trim() || t("gameMaster.voteFallback.missingReason");
+            parsedResult = { seat: seatIndex, reason };
+            break;
+          }
+        }
+      } else {
+        evalResult = { ok: false, reasons: ["parse_failed"] };
       }
-    } catch {
-      // Fallback to regex parsing below
+
+      if (attempt < 2 && evalResult) {
+        const retryInstruction = `你的输出未通过评估（${evalResult.reasons.join(", ")}）。请严格按 JSON 格式重新输出，确保 evidence_tags 至少 2 类，并包含 counter 与 consistency。`;
+        attemptMessages = [...baseMessages, { role: "user", content: retryInstruction }];
+      }
     }
 
     if (!parsedResult) {
+      const cleaned = cleanedVote.trim();
       const match = cleaned.match(/\d+/);
       if (match) {
         const seat = parseInt(match[0], 10) - 1;
@@ -1427,15 +1452,16 @@ export async function generateAIVote(
       type: "vote",
       request: { 
         model: player.agentProfile!.modelRef.model,
-        messages,
+        messages: baseMessages,
         player: { playerId: player.playerId, displayName: player.displayName, seat: player.seat, role: player.role },
       },
       response: { 
         content: cleanedVote, 
         raw: rawContent,
-        rawResponse: JSON.stringify(result.raw, null, 2),
-        finishReason: result.raw.choices?.[0]?.finish_reason,
+        rawResponse: lastRaw ? JSON.stringify(lastRaw, null, 2) : "",
+        finishReason,
         parsed: parsedResult,
+        eval: evalResult,
         duration: Date.now() - startTime 
       },
     });

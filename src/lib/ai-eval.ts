@@ -19,6 +19,34 @@ export type SpeechDecision = {
 
 export type EvalResult = { ok: boolean; reasons: string[] };
 
+export const parseVoteDecision = (raw: string): VoteDecision | null => {
+  if (!raw) return null;
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const seatRaw = parsed.seat;
+    const seat = typeof seatRaw === "number"
+      ? seatRaw
+      : typeof seatRaw === "string"
+        ? Number.parseInt(seatRaw, 10)
+        : undefined;
+    return {
+      seat: Number.isFinite(seat as number) ? (seat as number) : undefined,
+      reason: typeof parsed.reason === "string" ? parsed.reason.trim() : undefined,
+      evidence_tags: Array.isArray(parsed.evidence_tags)
+        ? parsed.evidence_tags.filter((t) => typeof t === "string") as string[]
+        : undefined,
+      counter: typeof parsed.counter === "string" ? parsed.counter.trim() : undefined,
+      consistency: typeof parsed.consistency === "string" ? parsed.consistency.trim() : undefined,
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : undefined,
+    };
+  } catch {
+    return null;
+  }
+};
+
 const ATTACKINESS_KEYWORDS = [
   "攻击性",
   "攻击",
