@@ -219,6 +219,14 @@ check(
   "HomeClient should use RecentGamesModal"
 );
 check(
+  exists("src/components/analysis/PlayerReviewTabs.tsx"),
+  "Missing PlayerReviewTabs component"
+);
+check(
+  readFile("src/components/analysis/PostGameAnalysisPage.tsx").includes("PlayerReviewTabs"),
+  "PostGameAnalysisPage should use PlayerReviewTabs"
+);
+check(
   readFile("src/store/game-machine.ts").includes("game-state-storage"),
   "game-machine should use sqlite storage helper."
 );
