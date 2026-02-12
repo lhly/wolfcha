@@ -72,6 +72,10 @@ check(
   readFile("src/lib/sqlite.ts").includes("models_json"),
   "Missing llm_config models_json column"
 );
+check(
+  readFile("src/lib/sqlite.ts").includes("player_reviews"),
+  "Missing player_reviews table"
+);
 
 if (exists("src/app/api/chat/route.ts")) {
   const chatRoute = readFile("src/app/api/chat/route.ts");
@@ -123,6 +127,7 @@ const apiFiles = [
   "src/app/api/game-state/route.ts",
   "src/app/api/custom-characters/route.ts",
   "src/app/api/game-history/route.ts",
+  "src/app/api/player-reviews/route.ts",
   "src/app/api/meta/route.ts",
 ];
 for (const file of apiFiles) {
@@ -132,6 +137,10 @@ for (const file of apiFiles) {
 check(
   readFile("src/app/api/game-history/route.ts").includes("checkpoint"),
   "Missing checkpoint action"
+);
+check(
+  readFile("src/app/api/game-history/route.ts").includes("generateReviewCards"),
+  "game-history should generate seat1 reviews on completion"
 );
 check(
   readFile("src/app/api/local-config/route.ts").includes("models_json"),
@@ -144,6 +153,10 @@ check(
 check(
   readFile("src/lib/game-history.ts").includes("checkpointGameHistory"),
   "Missing game history checkpoint helper"
+);
+check(
+  readFile("src/app/api/player-reviews/route.ts").includes("target_seat"),
+  "player-reviews route should handle target_seat"
 );
 check(
   readFile("src/hooks/useGameLogic.ts").includes("startGameHistory"),
@@ -204,6 +217,14 @@ check(
 check(
   readFile("src/app/HomeClient.tsx").includes("RecentGamesModal"),
   "HomeClient should use RecentGamesModal"
+);
+check(
+  exists("src/components/analysis/PlayerReviewTabs.tsx"),
+  "Missing PlayerReviewTabs component"
+);
+check(
+  readFile("src/components/analysis/PostGameAnalysisPage.tsx").includes("PlayerReviewTabs"),
+  "PostGameAnalysisPage should use PlayerReviewTabs"
 );
 check(
   readFile("src/store/game-machine.ts").includes("game-state-storage"),

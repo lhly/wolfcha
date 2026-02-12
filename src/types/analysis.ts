@@ -81,6 +81,20 @@ export interface PlayerReview {
   role: Role;
 }
 
+export interface PlayerReviewCard {
+  gameId: string;
+  targetPlayerId: string;
+  targetSeat: number;
+  reviewerPlayerId: string;
+  reviewerSeat: number;
+  reviewerName: string;
+  reviewerRole: Role;
+  reviewerAvatar: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type DeathCause = "killed" | "exiled" | "poisoned" | "shot" | "milk";
 
 export interface PlayerSnapshot {

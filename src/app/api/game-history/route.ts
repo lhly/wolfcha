@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/sqlite";
+import type { GameState } from "@/types/game";
+import { generateReviewCards, insertReviewCards, loadLlmConfigFromDb } from "@/lib/player-reviews";
 
 export const runtime = "nodejs";
 
@@ -249,6 +251,17 @@ export async function POST(req: Request) {
         now,
         gameId
       );
+
+      try {
+        if (body.state && typeof body.state === "object") {
+          loadLlmConfigFromDb(db);
+          const cards = await generateReviewCards(body.state as GameState, 1);
+          insertReviewCards(db, cards);
+        }
+      } catch (error) {
+        console.error("Failed to generate seat1 reviews:", error);
+      }
+
       return NextResponse.json({ ok: true });
     }
 

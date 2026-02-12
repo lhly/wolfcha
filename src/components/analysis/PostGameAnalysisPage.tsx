@@ -6,7 +6,7 @@ import { AnalysisHeader } from "./AnalysisHeader";
 import { OverviewCard } from "./OverviewCard";
 import { PersonalStatsCard } from "./PersonalStatsCard";
 import { TimelineReview } from "./TimelineReview";
-import { PlayerReviews } from "./PlayerReviews";
+import { PlayerReviewTabs } from "./PlayerReviewTabs";
 import { AnalysisFooter } from "./AnalysisFooter";
 import { IdentityDashboard } from "./IdentityDashboard";
 import { PlayerDetailModal } from "./PlayerDetailModal";
@@ -52,7 +52,7 @@ export function PostGameAnalysisPage({
             <OverviewCard data={data} onSelectPlayer={openPlayerDetail} />
             <PersonalStatsCard stats={data.personalStats} overrideTag={overrideTag} onOverrideTagChange={setOverrideTag} />
             <div className="hidden lg:block">
-              <PlayerReviews reviews={data.reviews} onSelectPlayer={openPlayerDetail} />
+              <PlayerReviewTabs data={data} />
               <div className="mt-8">
                 <AnalysisFooter onShare={handleShare} onReturn={onReturn} />
               </div>
@@ -79,7 +79,7 @@ export function PostGameAnalysisPage({
 
             {/* Mobile only: Reviews & Footer */}
             <div className="lg:hidden space-y-8">
-              <PlayerReviews reviews={data.reviews} onSelectPlayer={openPlayerDetail} />
+              <PlayerReviewTabs data={data} />
               <AnalysisFooter onShare={handleShare} onReturn={onReturn} />
             </div>
           </div>

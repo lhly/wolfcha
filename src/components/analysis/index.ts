@@ -3,7 +3,7 @@ export { AnalysisFooter } from "./AnalysisFooter";
 export { OverviewCard } from "./OverviewCard";
 export { PersonalStatsCard } from "./PersonalStatsCard";
 export { TimelineReview } from "./TimelineReview";
-export { PlayerReviews } from "./PlayerReviews";
+export { PlayerReviewTabs } from "./PlayerReviewTabs";
 export { IdentityDashboard } from "./IdentityDashboard";
 export { PostGameAnalysisPage } from "./PostGameAnalysisPage";
 export { ShareModal } from "./ShareModal";
