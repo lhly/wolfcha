@@ -140,7 +140,15 @@ function getRitualCueFromSystemMessage(content: string): { title: string; subtit
 // ============ 主组件 ============
 
 type HomeClientProps = {
-  initialLlm: { base_url: string; api_key: string; model: string; updated_at?: number } | null;
+  initialLlm:
+    | {
+        base_url: string;
+        api_key: string;
+        model: string;
+        models_json?: string | null;
+        updated_at?: number;
+      }
+    | null;
   initialGame: { version: number; state: GameState; saved_at: number } | null;
   initialTotpAuthed?: boolean;
 };
