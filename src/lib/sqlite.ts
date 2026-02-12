@@ -72,6 +72,10 @@ function ensureSchema(database: Database.Database) {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS player_reviews_unique
+      ON player_reviews (game_id, target_seat, reviewer_player_id);
+    CREATE INDEX IF NOT EXISTS player_reviews_target
+      ON player_reviews (game_id, target_seat);
     CREATE TABLE IF NOT EXISTS meta_kv (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
