@@ -163,6 +163,7 @@ export function createInitialGameState(): GameState {
     voteReasons: {},
     lastVoteReasons: {},
     voteHistory: {},
+    publicRoleConfig: {},
     dailySummaries: {},
     dailySummaryFacts: {},
     dailySummaryVoteData: {},
