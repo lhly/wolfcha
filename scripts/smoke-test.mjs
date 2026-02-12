@@ -72,6 +72,10 @@ check(
   readFile("src/lib/sqlite.ts").includes("models_json"),
   "Missing llm_config models_json column"
 );
+check(
+  readFile("src/lib/sqlite.ts").includes("player_reviews"),
+  "Missing player_reviews table"
+);
 
 if (exists("src/app/api/chat/route.ts")) {
   const chatRoute = readFile("src/app/api/chat/route.ts");
@@ -123,6 +127,7 @@ const apiFiles = [
   "src/app/api/game-state/route.ts",
   "src/app/api/custom-characters/route.ts",
   "src/app/api/game-history/route.ts",
+  "src/app/api/player-reviews/route.ts",
   "src/app/api/meta/route.ts",
 ];
 for (const file of apiFiles) {
