@@ -108,6 +108,10 @@ if (exists("src/lib/llm.ts")) {
 } else {
   errors.push("Missing llm.ts.");
 }
+check(
+  readFile("src/lib/character-generator.ts").includes("getSelectedModels"),
+  "sampleModelRefs should use getSelectedModels."
+);
 
 const apiFiles = [
   "src/app/api/local-config/route.ts",

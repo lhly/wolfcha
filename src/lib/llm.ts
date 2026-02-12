@@ -1,4 +1,5 @@
 import { getLlmConfigWithDefaults } from "@/lib/llm-config";
+import { getGeneratorModel, getSelectedModels } from "@/lib/api-keys";
 import { type ModelRef } from "@/types/game";
 import { gameStatsTracker } from "@/hooks/useGameStats";
 import { gameSessionTracker } from "@/lib/game-session-tracker";
@@ -86,6 +87,8 @@ export type BatchCompletionResult =
   | { ok: false; error: string; status?: number };
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const INVALID_MODEL_MARKER = "[INVALID_MODEL]";
+const invalidModelCache = new Set<string>();
 
 function parseRetryAfterMs(response: Response): number | null {
   const raw = response.headers.get("retry-after");
@@ -115,6 +118,17 @@ function isQuotaExhaustedError(status: number, errorText: string): boolean {
   );
 }
 
+function isInvalidModelError(status: number, errorText: string): boolean {
+  if (status === 404) return true;
+  const lower = errorText.toLowerCase();
+  return (
+    (lower.includes("model") && lower.includes("not found")) ||
+    lower.includes("invalid model") ||
+    (lower.includes("model") && lower.includes("does not exist")) ||
+    (lower.includes("unknown") && lower.includes("model"))
+  );
+}
+
 function formatApiError(status: number, errorText: string): string {
   let msg = `API error: ${status}`;
   try {
@@ -134,11 +148,33 @@ function formatApiError(status: number, errorText: string): string {
   if (isQuotaExhaustedError(status, errorText)) {
     return `${QUOTA_EXHAUSTED_MARKER} ${msg}`;
   }
+  if (isInvalidModelError(status, errorText)) {
+    return `${INVALID_MODEL_MARKER} ${msg}`;
+  }
   return msg;
 }
 
 export function isQuotaExhaustedMessage(message: string): boolean {
   return message.includes(QUOTA_EXHAUSTED_MARKER);
+}
+
+export function isInvalidModelMessage(message: string): boolean {
+  return message.includes(INVALID_MODEL_MARKER);
+}
+
+function pickFallbackModel(current: string, attempted: Set<string>): string | null {
+  const pool = getSelectedModels();
+  const candidates = pool.filter(
+    (model) => model && model !== current && !invalidModelCache.has(model) && !attempted.has(model)
+  );
+  if (candidates.length > 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+  const generator = getGeneratorModel();
+  if (generator && generator !== current && !invalidModelCache.has(generator) && !attempted.has(generator)) {
+    return generator;
+  }
+  return null;
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -379,41 +415,57 @@ export async function generateCompletion(
   const cfg = getLlmConfigWithDefaults();
   const baseUrl = cfg.baseUrl;
   const apiKey = cfg.apiKey;
-  const modelToUse = options.model || cfg.model;
+  let modelToUse = options.model || cfg.model;
+  const attempted = new Set<string>();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
-  console.log("[LLM] generateCompletion:", {
-    baseUrl,
-    hasApiKey: !!apiKey,
-    model: modelToUse,
-  });
+  let response: Response;
+  while (true) {
+    if (invalidModelCache.has(modelToUse)) {
+      const fallback = pickFallbackModel(modelToUse, attempted);
+      if (fallback) modelToUse = fallback;
+    }
+    attempted.add(modelToUse);
+    console.log("[LLM] generateCompletion:", {
+      baseUrl,
+      hasApiKey: !!apiKey,
+      model: modelToUse,
+    });
 
-  const response = await fetchWithRetry(
-    "/api/chat",
-    {
-      method: "POST",
-      headers: {
-        ...headers,
+    response = await fetchWithRetry(
+      "/api/chat",
+      {
+        method: "POST",
+        headers: {
+          ...headers,
+        },
+        body: JSON.stringify({
+          baseUrl,
+          apiKey,
+          model: modelToUse,
+          messages: options.messages,
+          temperature: options.temperature ?? 0.7,
+          max_tokens: maxTokens,
+          ...(options.reasoning ? { reasoning: options.reasoning } : {}),
+          ...(options.reasoning_effort ? { reasoning_effort: options.reasoning_effort } : {}),
+          ...(options.response_format ? { response_format: options.response_format } : {}),
+        }),
       },
-      body: JSON.stringify({
-        baseUrl,
-        apiKey,
-        model: modelToUse,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        max_tokens: maxTokens,
-        ...(options.reasoning ? { reasoning: options.reasoning } : {}),
-        ...(options.reasoning_effort ? { reasoning_effort: options.reasoning_effort } : {}),
-        ...(options.response_format ? { response_format: options.response_format } : {}),
-      }),
-    },
-    4
-  );
+      4
+    );
 
-  if (!response.ok) {
+    if (response.ok) break;
     const errorText = await response.text().catch(() => "");
+    if (isInvalidModelError(response.status, errorText)) {
+      invalidModelCache.add(modelToUse);
+      const fallback = pickFallbackModel(modelToUse, attempted);
+      if (fallback) {
+        modelToUse = fallback;
+        continue;
+      }
+    }
     throw new Error(formatApiError(response.status, errorText));
   }
 
@@ -530,36 +582,52 @@ export async function* generateCompletionStream(
   const cfg = getLlmConfigWithDefaults();
   const baseUrl = cfg.baseUrl;
   const apiKey = cfg.apiKey;
-  const modelToUse = options.model || cfg.model;
+  let modelToUse = options.model || cfg.model;
+  const attempted = new Set<string>();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
-  const response = await fetchWithRetry(
-    "/api/chat",
-    {
-      method: "POST",
-      headers: {
-        ...headers,
+  let response: Response;
+  while (true) {
+    if (invalidModelCache.has(modelToUse)) {
+      const fallback = pickFallbackModel(modelToUse, attempted);
+      if (fallback) modelToUse = fallback;
+    }
+    attempted.add(modelToUse);
+    response = await fetchWithRetry(
+      "/api/chat",
+      {
+        method: "POST",
+        headers: {
+          ...headers,
+        },
+        body: JSON.stringify({
+          baseUrl,
+          apiKey,
+          model: modelToUse,
+          messages: options.messages,
+          temperature: options.temperature ?? 0.7,
+          max_tokens: maxTokens,
+          stream: true,
+          ...(options.reasoning ? { reasoning: options.reasoning } : {}),
+          ...(options.reasoning_effort ? { reasoning_effort: options.reasoning_effort } : {}),
+          ...(options.response_format ? { response_format: options.response_format } : {}),
+        }),
       },
-      body: JSON.stringify({
-        baseUrl,
-        apiKey,
-        model: modelToUse,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        max_tokens: maxTokens,
-        stream: true,
-        ...(options.reasoning ? { reasoning: options.reasoning } : {}),
-        ...(options.reasoning_effort ? { reasoning_effort: options.reasoning_effort } : {}),
-        ...(options.response_format ? { response_format: options.response_format } : {}),
-      }),
-    },
-    4
-  );
+      4
+    );
 
-  if (!response.ok) {
+    if (response.ok) break;
     const errorText = await response.text().catch(() => "");
+    if (isInvalidModelError(response.status, errorText)) {
+      invalidModelCache.add(modelToUse);
+      const fallback = pickFallbackModel(modelToUse, attempted);
+      if (fallback) {
+        modelToUse = fallback;
+        continue;
+      }
+    }
     throw new Error(formatApiError(response.status, errorText));
   }
 

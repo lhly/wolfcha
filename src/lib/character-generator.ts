@@ -1,7 +1,7 @@
 import { generateJSON, generateCompletionStream, stripMarkdownCodeFences } from "./llm";
 import { LLMJSONParser } from "ai-json-fixer";
 import { GENERATOR_MODEL, type GameScenario, type ModelRef, type Persona } from "@/types/game";
-import { getGeneratorModel, isCustomKeyEnabled } from "@/lib/api-keys";
+import { getGeneratorModel, getSelectedModels, isCustomKeyEnabled } from "@/lib/api-keys";
 import { aiLogger } from "./ai-logger";
 import { AI_TEMPERATURE, GAME_TEMPERATURE } from "./ai-config";
 import { getRandomScenario } from "./scenarios";
@@ -41,15 +41,17 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export const sampleModelRefs = (count: number): ModelRef[] => {
-  const model = getGeneratorModel() || GENERATOR_MODEL;
-  const pool: ModelRef[] = [{ provider: "zenmux" as const, model }];
-
   if (!Number.isFinite(count) || count <= 0) return [];
-  if (count <= pool.length) return pool.slice(0, count);
-
-  const out = [...pool];
-  while (out.length < count) {
-    out.push(pool[0]);
+  const selectedModels = getSelectedModels();
+  const fallbackModel = getGeneratorModel() || GENERATOR_MODEL;
+  const poolModels = selectedModels.length > 0 ? selectedModels : [fallbackModel];
+  const pool = shuffleArray(
+    poolModels.map((model) => ({ provider: "zenmux" as const, model }))
+  );
+  const out: ModelRef[] = [];
+  for (let i = 0; out.length < count; i += 1) {
+    const ref = pool[i % pool.length];
+    out.push({ ...ref });
   }
   return out;
 };
