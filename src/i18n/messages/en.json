@@ -2109,7 +2109,8 @@
     "fields": {
       "baseUrl": "BaseUrl",
       "apiKey": "API Key",
-      "model": "Models"
+      "model": "Models",
+      "primaryModel": "Primary model"
     },
     "placeholders": {
       "apiKey": "sk-..."

@@ -6,6 +6,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -28,16 +35,26 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
   const [apiKey, setApiKey] = useState("");
   const [modelInput, setModelInput] = useState("");
   const [modelTags, setModelTags] = useState<string[]>([]);
+  const [primaryModel, setPrimaryModel] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
   const normalizeTags = (values: string[]) =>
     Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 
+  const resolvePrimaryModel = (models: string[], fallback?: string) => {
+    if (fallback && models.includes(fallback)) return fallback;
+    return models[0] ?? "";
+  };
+
   const addTags = (raw: string) => {
     const parts = raw.split(/[,\s]+/).map((part) => part.trim()).filter(Boolean);
     if (parts.length === 0) return;
-    setModelTags((prev) => normalizeTags([...prev, ...parts]));
+    setModelTags((prev) => {
+      const next = normalizeTags([...prev, ...parts]);
+      setPrimaryModel((current) => resolvePrimaryModel(next, current));
+      return next;
+    });
     setModelInput("");
   };
 
@@ -53,6 +70,7 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
           ? [existing.model]
           : [LOCAL_LLM_DEFAULTS.model];
     setModelTags(initialModels);
+    setPrimaryModel(resolvePrimaryModel(initialModels, existing.model));
     setModelInput("");
     void fetchLlmConfig().then((cfg) => {
       if (!cfg) return;
@@ -65,6 +83,7 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
             ? [cfg.model]
             : [LOCAL_LLM_DEFAULTS.model];
       setModelTags(nextModels);
+      setPrimaryModel(resolvePrimaryModel(nextModels, cfg.model));
       setModelInput("");
     });
   }, [open]);
@@ -125,14 +144,17 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
       return;
     }
 
+    const nextPrimary = resolvePrimaryModel(validatedModels, primaryModel);
+
     await saveLlmConfig({
       baseUrl: baseUrlValue,
       apiKey: apiKeyValue,
-      model: validatedModels[0],
+      model: nextPrimary,
       models: validatedModels,
     });
     toast.success(t("localLlmSettings.toasts.saved"));
     setModelTags(validatedModels);
+    setPrimaryModel(nextPrimary);
     setModelInput("");
     onSaved?.();
     onOpenChange(false);
@@ -237,7 +259,13 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
                   <span className="max-w-[160px] truncate">{tag}</span>
                   <button
                     type="button"
-                    onClick={() => setModelTags((prev) => prev.filter((item) => item !== tag))}
+                    onClick={() =>
+                      setModelTags((prev) => {
+                        const next = prev.filter((item) => item !== tag);
+                        setPrimaryModel((current) => resolvePrimaryModel(next, current));
+                        return next;
+                      })
+                    }
                     className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                     aria-label={`Remove ${tag}`}
                   >
@@ -259,6 +287,22 @@ export function LocalModelSettingsModal({ open, onOpenChange, onSaved }: LocalMo
                 className="min-w-[120px] flex-1 bg-transparent text-sm outline-none"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">{t("localLlmSettings.fields.primaryModel")}</Label>
+            <Select value={primaryModel} onValueChange={setPrimaryModel} disabled={modelTags.length === 0}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={LOCAL_LLM_DEFAULTS.model} />
+              </SelectTrigger>
+              <SelectContent>
+                {modelTags.map((model) => (
+                  <SelectItem key={model} value={model}>
+                    {model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex gap-2 pt-2">

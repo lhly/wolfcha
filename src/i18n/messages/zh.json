@@ -2109,7 +2109,8 @@
     "fields": {
       "baseUrl": "BaseUrl",
       "apiKey": "API Key",
-      "model": "模型"
+      "model": "模型",
+      "primaryModel": "主模型"
     },
     "placeholders": {
       "apiKey": "sk-..."

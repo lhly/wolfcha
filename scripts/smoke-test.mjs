@@ -58,6 +58,10 @@ check(
   readFile("src/components/game/LocalModelSettingsModal.tsx").includes("modelTags"),
   "LocalModelSettingsModal should manage modelTags."
 );
+check(
+  readFile("src/components/game/LocalModelSettingsModal.tsx").includes("primaryModel"),
+  "LocalModelSettingsModal should manage primaryModel."
+);
 
 check(exists("src/lib/sqlite.ts"), "Missing sqlite helper.");
 check(
@@ -264,6 +268,14 @@ check(
 check(
   gameLogicFile.includes("fetchPersistedGameState") && gameLogicFile.includes("hasFetchedRestoreRef"),
   "useGameLogic should attempt a persisted-state fetch fallback when restore check misses."
+);
+check(
+  readFile("src/i18n/messages/zh.json").includes("\"primaryModel\""),
+  "Missing localLlmSettings.fields.primaryModel (zh)."
+);
+check(
+  readFile("src/i18n/messages/en.json").includes("\"primaryModel\""),
+  "Missing localLlmSettings.fields.primaryModel (en)."
 );
 check(
   readFile("src/i18n/messages/zh.json").includes("phaseSpeechSummary"),
