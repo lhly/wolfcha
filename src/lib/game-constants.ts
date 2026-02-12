@@ -15,6 +15,16 @@ export const GAME_CONFIG = {
   MAX_BADGE_REVOTE_COUNT: 2,
 } as const;
 
+/** AI 推理硬评估配置 */
+export const AI_HARD_EVAL = {
+  /** 是否启用硬评估 */
+  ENABLED: true,
+  /** 最大重试次数 */
+  MAX_RETRIES: 2,
+  /** 硬评估时禁用流式发言 */
+  DISABLE_STREAMING_SPEECH: true,
+} as const;
+
 /** 延迟时间配置（毫秒） */
 export const DELAY_CONFIG = {
   /** 短延迟 - 状态切换 */

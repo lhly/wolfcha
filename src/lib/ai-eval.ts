@@ -47,6 +47,40 @@ export const parseVoteDecision = (raw: string): VoteDecision | null => {
   }
 };
 
+export const parseSpeechDecision = (raw: string): SpeechDecision | null => {
+  if (!raw) return null;
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+    const speechRaw = parsed.speech ?? parsed.messages;
+    const speech = Array.isArray(speechRaw)
+      ? speechRaw.filter((s) => typeof s === "string").map((s) => (s as string).trim()).filter(Boolean)
+      : undefined;
+
+    const rationaleRaw = parsed.rationale;
+    const rationale = rationaleRaw && typeof rationaleRaw === "object" && !Array.isArray(rationaleRaw)
+      ? rationaleRaw as Record<string, unknown>
+      : undefined;
+
+    return {
+      speech,
+      rationale: rationale ? {
+        evidence_tags: Array.isArray(rationale.evidence_tags)
+          ? rationale.evidence_tags.filter((t) => typeof t === "string") as string[]
+          : undefined,
+        counter: typeof rationale.counter === "string" ? rationale.counter.trim() : undefined,
+        consistency: typeof rationale.consistency === "string" ? rationale.consistency.trim() : undefined,
+        confidence: typeof rationale.confidence === "number" ? rationale.confidence : undefined,
+      } : undefined,
+    };
+  } catch {
+    return null;
+  }
+};
+
 const ATTACKINESS_KEYWORDS = [
   "攻击性",
   "攻击",

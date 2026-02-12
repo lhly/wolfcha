@@ -20,6 +20,7 @@ import {
   type ModelRef,
 } from "@/types/game";
 import { GAME_TEMPERATURE } from "./ai-config";
+import { AI_HARD_EVAL } from "./game-constants";
 import { sampleModelRefs, type GeneratedCharacter } from "./character-generator";
 import { aiLogger } from "./ai-logger";
 import { getGeneratorModel, getSummaryModel } from "@/lib/api-keys";
@@ -27,7 +28,7 @@ import { PhaseManager } from "@/game/core/PhaseManager";
 import type { PromptResult } from "@/game/core/types";
 import { buildCachedSystemMessageFromParts } from "./prompt-utils";
 import { getI18n } from "@/i18n/translator";
-import { evaluateVoteDecision, parseVoteDecision } from "./ai-eval";
+import { evaluateVoteDecision, evaluateSpeechDecision, parseSpeechDecision, parseVoteDecision } from "./ai-eval";
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -1155,6 +1156,101 @@ export async function generateAISpeechSegments(
   }
 }
 
+
+export async function generateAISpeechSegmentsHardEval(
+  state: GameState,
+  player: Player
+): Promise<string[]> {
+  const { t } = getI18n();
+  const prompt = resolvePhasePrompt(state.phase, state, player);
+  const startTime = Date.now();
+  const { messages } = buildMessagesForPrompt(prompt);
+  const baseMessages = messages;
+  const maxRetries = AI_HARD_EVAL.ENABLED ? AI_HARD_EVAL.MAX_RETRIES : 0;
+
+  let rawContent = "";
+  let cleanedSpeech = "";
+  let lastRaw: ChatCompletionResponse | null = null;
+  let evalResult: { ok: boolean; reasons: string[] } | null = null;
+  let parsed: { speech?: string[]; rationale?: { evidence_tags?: string[]; counter?: string; consistency?: string; confidence?: number } } | null = null;
+
+  let attemptMessages = baseMessages;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const result = await generateCompletion(mergeOptionsFromModelRef(player.agentProfile!.modelRef, {
+      model: player.agentProfile!.modelRef.model,
+      messages: attemptMessages,
+      temperature: GAME_TEMPERATURE.SPEECH,
+      response_format: { type: "json_object" },
+    }));
+
+    lastRaw = result.raw;
+    rawContent = result.content;
+    cleanedSpeech = sanitizeSeatMentions(
+      sanitizeModelArtifacts(stripMarkdownCodeFences(rawContent)),
+      state.players
+    );
+
+    parsed = parseSpeechDecision(cleanedSpeech);
+    if (parsed) {
+      evalResult = AI_HARD_EVAL.ENABLED ? evaluateSpeechDecision(parsed) : { ok: true, reasons: [] };
+      const segments = Array.isArray(parsed.speech) ? parsed.speech : [];
+      if (evalResult.ok && segments.length > 0) {
+        await aiLogger.log({
+          type: "speech",
+          request: { 
+            model: player.agentProfile!.modelRef.model,
+            messages: baseMessages,
+            player: { playerId: player.playerId, displayName: player.displayName, seat: player.seat, role: player.role },
+          },
+          response: {
+            content: cleanedSpeech,
+            raw: rawContent,
+            rawResponse: JSON.stringify(result.raw, null, 2),
+            finishReason: result.raw.choices?.[0]?.finish_reason,
+            eval: evalResult,
+            duration: Date.now() - startTime,
+          },
+        });
+        return segments
+          .map((s) => sanitizeSeatMentions(sanitizeModelArtifacts(String(s)), state.players))
+          .filter(Boolean);
+      }
+    } else {
+      evalResult = { ok: false, reasons: ["parse_failed"] };
+    }
+
+    if (AI_HARD_EVAL.ENABLED && attempt < maxRetries && evalResult) {
+      const retryInstruction = `你的输出未通过评估（${evalResult.reasons.join(", ")}）。请严格按 JSON 格式重新输出，确保 evidence_tags 至少 2 类，并包含 counter 与 consistency。`;
+      attemptMessages = [...baseMessages, { role: "user", content: retryInstruction }];
+    }
+  }
+
+  await aiLogger.log({
+    type: "speech",
+    request: { 
+      model: player.agentProfile!.modelRef.model,
+      messages: baseMessages,
+      player: { playerId: player.playerId, displayName: player.displayName, seat: player.seat, role: player.role },
+    },
+    response: {
+      content: cleanedSpeech,
+      raw: rawContent,
+      rawResponse: lastRaw ? JSON.stringify(lastRaw, null, 2) : "",
+      finishReason: lastRaw?.choices?.[0]?.finish_reason,
+      eval: evalResult,
+      duration: Date.now() - startTime,
+    },
+  });
+
+  if (parsed?.speech && parsed.speech.length > 0) {
+    return parsed.speech
+      .map((s) => sanitizeSeatMentions(sanitizeModelArtifacts(String(s)), state.players))
+      .filter(Boolean);
+  }
+
+  return generateAISpeechSegments(state, player);
+}
+
 export interface StreamingSpeechOptions {
   onSegmentReceived?: (segment: string, index: number) => void;
   onProgress?: (current: number) => void;
@@ -1387,7 +1483,8 @@ export async function generateAIVote(
 
   try {
     let attemptMessages = baseMessages;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    const maxRetries = AI_HARD_EVAL.ENABLED ? AI_HARD_EVAL.MAX_RETRIES : 0;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       result = await generateCompletion(mergeOptionsFromModelRef(player.agentProfile!.modelRef, {
         model: player.agentProfile!.modelRef.model,
         messages: attemptMessages,
@@ -1408,6 +1505,11 @@ export async function generateAIVote(
         const seatIndex = typeof parsed.seat === "number" ? parsed.seat - 1 : NaN;
         if (!Number.isFinite(seatIndex) || !validSeats.includes(seatIndex)) {
           evalResult = { ok: false, reasons: ["seat_invalid"] };
+        } else if (!AI_HARD_EVAL.ENABLED) {
+          evalResult = { ok: true, reasons: [] };
+          const reason = parsed.reason?.trim() || t("gameMaster.voteFallback.missingReason");
+          parsedResult = { seat: seatIndex, reason };
+          break;
         } else {
           evalResult = evaluateVoteDecision(parsed);
           if (evalResult.ok) {
@@ -1420,7 +1522,7 @@ export async function generateAIVote(
         evalResult = { ok: false, reasons: ["parse_failed"] };
       }
 
-      if (attempt < 2 && evalResult) {
+      if (AI_HARD_EVAL.ENABLED && attempt < maxRetries && evalResult) {
         const retryInstruction = `你的输出未通过评估（${evalResult.reasons.join(", ")}）。请严格按 JSON 格式重新输出，确保 evidence_tags 至少 2 类，并包含 counter 与 consistency。`;
         attemptMessages = [...baseMessages, { role: "user", content: retryInstruction }];
       }
