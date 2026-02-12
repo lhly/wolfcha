@@ -139,6 +139,10 @@ check(
   "Missing checkpoint action"
 );
 check(
+  readFile("src/app/api/game-history/route.ts").includes("generateReviewCards"),
+  "game-history should generate seat1 reviews on completion"
+);
+check(
   readFile("src/app/api/local-config/route.ts").includes("models_json"),
   "local-config route should handle models_json"
 );
