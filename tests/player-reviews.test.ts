@@ -28,6 +28,29 @@ test("buildReviewPrompt includes target and reviewer seats", async () => {
   assert.ok(prompt.includes("2号"));
 });
 
+test("buildReviewPrompt includes all player messages", async () => {
+  const { buildReviewPrompt } = await import("@/lib/player-reviews");
+  const state = {
+    gameId: "game-1",
+    day: 2,
+    winner: "village",
+    players: [
+      { playerId: "p1", seat: 0, displayName: "一号", role: "Villager", alignment: "village", alive: true, isHuman: true },
+      { playerId: "p2", seat: 1, displayName: "二号", role: "Werewolf", alignment: "wolf", alive: true, isHuman: false },
+    ],
+    messages: [
+      { id: "m1", playerId: "p1", playerName: "一号", content: "我是好人", timestamp: 1 },
+      { id: "m2", playerId: "p2", playerName: "二号", content: "我是狼人", timestamp: 2 },
+    ],
+    dailySummaries: {},
+  } as any;
+  const target = state.players[0];
+  const reviewer = state.players[1];
+  const prompt = buildReviewPrompt(state, target, reviewer);
+  assert.ok(prompt.includes("我是好人"));
+  assert.ok(prompt.includes("我是狼人"));
+});
+
 test("coerceReviewLength clamps content", async () => {
   const { coerceReviewLength, getTextLength } = await import("@/lib/player-reviews");
   const short = "短".repeat(199);

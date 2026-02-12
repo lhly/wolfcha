@@ -61,10 +61,22 @@ export function buildReviewPrompt(state: GameState, target: Player, reviewer: Pl
     .filter((m) => !m.isSystem && m.playerId === target.playerId)
     .map((m) => m.content)
     .join("\n");
+  const seatMap = new Map((state.players ?? []).map((p) => [p.playerId, p.seat + 1]));
+  const allMessages = (state.messages || [])
+    .filter((m) => !m.isSystem)
+    .map((m) => {
+      const seat = seatMap.get(m.playerId);
+      const day = m.day ? `第${m.day}天` : "";
+      const phase = m.phase ? ` ${m.phase}` : "";
+      const prefix = `${day}${phase}${day || phase ? " " : ""}${seat ? `${seat}号` : m.playerName ?? ""}`;
+      return `${prefix}: ${m.content}`;
+    })
+    .join("\n");
 
   return `你是狼人杀玩家复盘点评员，请以${reviewerSeat}号玩家「${reviewer.displayName}」的口吻，评价${targetSeat}号玩家「${target.displayName}」的整局表现。\n\n` +
     `【游戏结果】${winnerSide}阵营获胜\n` +
     `【玩家列表】${playersSummary}\n` +
+    `【全体发言】\n${allMessages || "（无发言记录）"}\n` +
     `【目标玩家发言】${targetSpeeches || "（无发言记录）"}\n` +
     `【局势摘要】\n${historyText || "（无摘要）"}\n\n` +
     `要求：\n` +
