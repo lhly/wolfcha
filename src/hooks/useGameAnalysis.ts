@@ -12,6 +12,7 @@ import {
   analysisErrorAtom,
 } from "@/store/game-machine";
 import { generateGameAnalysis } from "@/lib/game-analysis";
+import { buildGameAnalysisReport, saveGameAnalysisReport } from "@/lib/game-analysis-api";
 import { gameStatsTracker } from "@/hooks/useGameStats";
 import { getReviewModel } from "@/lib/api-keys";
 
@@ -45,6 +46,10 @@ export function useGameAnalysis() {
       const reviewModel = getReviewModel();
       const data = await generateGameAnalysis(gameState, reviewModel, durationSeconds);
       setAnalysisData(data);
+      const report = buildGameAnalysisReport(data, gameState.messages);
+      void saveGameAnalysisReport(report).catch((err) => {
+        console.error("Failed to persist game analysis report:", err);
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "分析生成失败";
       setError(errorMessage);
