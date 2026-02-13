@@ -1,4 +1,4 @@
-import type { Alignment, Role } from "./game";
+import type { Alignment, ChatMessage, Role } from "./game";
 
 export type NightEventType = "kill" | "save" | "poison" | "check" | "guard";
 export type DayEventType = "exile" | "badge" | "hunter_shot";
@@ -140,6 +140,10 @@ export interface GameAnalysisData {
   personalStats: PersonalStats;
 
   reviews: PlayerReview[];
+}
+
+export interface GameAnalysisReport extends GameAnalysisData {
+  messages: ChatMessage[];
 }
 
 export const RADAR_LABELS_VILLAGE = [
