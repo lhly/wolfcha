@@ -51,6 +51,31 @@ test("buildReviewPrompt includes all player messages", async () => {
   assert.ok(prompt.includes("我是狼人"));
 });
 
+test("buildReviewPrompt prefers report winner and messages", async () => {
+  const { buildReviewPrompt } = await import("@/lib/player-reviews");
+  const state = {
+    gameId: "game-1",
+    day: 2,
+    winner: null,
+    players: [
+      { playerId: "p1", seat: 0, displayName: "一号", role: "Villager", alignment: "village", alive: true, isHuman: true },
+      { playerId: "p2", seat: 1, displayName: "二号", role: "Werewolf", alignment: "wolf", alive: true, isHuman: false },
+    ],
+    messages: [],
+  } as any;
+  const report = {
+    result: "wolf_win",
+    players: [],
+    timeline: [],
+    messages: [{ id: "m1", content: "系统提示", isSystem: true }],
+  } as any;
+  const target = state.players[0];
+  const reviewer = state.players[1];
+  const prompt = buildReviewPrompt(state, target, reviewer, report);
+  assert.ok(prompt.includes("狼人阵营获胜"));
+  assert.ok(prompt.includes("系统提示"));
+});
+
 test("coerceReviewLength clamps content", async () => {
   const { coerceReviewLength, getTextLength } = await import("@/lib/player-reviews");
   const short = "短".repeat(199);

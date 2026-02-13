@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import type { GameState, Player, ModelRef } from "@/types/game";
-import type { PlayerReviewCard } from "@/types/analysis";
+import type { GameAnalysisReport, PlayerReviewCard } from "@/types/analysis";
 import { generateJSON, mergeOptionsFromModelRef } from "@/lib/llm";
 import { getReviewModel } from "@/lib/api-keys";
 import { initLlmConfig, normalizeLlmConfig } from "@/lib/llm-config";
@@ -36,45 +36,108 @@ export type ReviewPlanItem = {
   prompt: string;
 };
 
-export function buildReviewPlan(state: GameState, targetSeat: number): ReviewPlanItem[] {
+export function buildReviewPlan(
+  state: GameState,
+  targetSeat: number,
+  report?: GameAnalysisReport | null
+): ReviewPlanItem[] {
   const target = state.players.find((p) => p.seat + 1 === targetSeat);
   if (!target) return [];
   const reviewers = state.players.filter((p) => !p.isHuman);
   return reviewers.map((reviewer) => ({
     reviewer,
     reviewerSeat: reviewer.seat + 1,
-    prompt: buildReviewPrompt(state, target, reviewer),
+    prompt: buildReviewPrompt(state, target, reviewer, report),
   }));
 }
 
-export function buildReviewPrompt(state: GameState, target: Player, reviewer: Player): string {
-  const targetSeat = target.seat + 1;
-  const reviewerSeat = reviewer.seat + 1;
-  const winnerSide = state.winner === "wolf" ? "狼人" : "好人";
-  const playersSummary = (state.players ?? [])
+const ROLE_LABELS: Record<string, string> = {
+  Werewolf: "狼人",
+  Seer: "预言家",
+  Witch: "女巫",
+  Hunter: "猎人",
+  Guard: "守卫",
+  Villager: "平民",
+};
+
+function resolveWinnerSide(state: GameState, report?: GameAnalysisReport | null): string {
+  if (report?.result === "wolf_win") return "狼人";
+  if (report?.result === "village_win") return "好人";
+  if (state.winner === "wolf") return "狼人";
+  if (state.winner === "village") return "好人";
+  return "未知";
+}
+
+function formatIdentity(player: Player, report?: GameAnalysisReport | null): string {
+  const snapshot = report?.players?.find((p) => p.playerId === player.playerId);
+  const role = snapshot?.role ?? player.role;
+  const alignment = snapshot?.alignment ?? player.alignment;
+  const roleLabel = ROLE_LABELS[role] ?? role;
+  const alignmentLabel = alignment === "wolf" ? "狼人阵营" : alignment === "village" ? "好人阵营" : "未知阵营";
+  return `${player.seat + 1}号 ${player.displayName}（${roleLabel}，${alignmentLabel}）`;
+}
+
+function buildPlayersSummary(state: GameState, report?: GameAnalysisReport | null): string {
+  if (report?.players && report.players.length > 0) {
+    return report.players
+      .map((p) => `${p.seat + 1}号 ${p.name}（${ROLE_LABELS[p.role] ?? p.role}${p.isAlive ? "" : "，已出局"}）`)
+      .join("、");
+  }
+  return (state.players ?? [])
     .map((p) => `${p.seat + 1}号 ${p.displayName}（${p.role}${p.alive ? "" : "，已出局"}）`)
     .join("、");
-  const historyText = Object.entries(state.dailySummaries || {})
+}
+
+function buildTimelineText(state: GameState, report?: GameAnalysisReport | null): string {
+  if (report?.timeline && report.timeline.length > 0) {
+    return report.timeline.map((entry) => `第${entry.day}天：${entry.summary}`).join("\n");
+  }
+  return Object.entries(state.dailySummaries || {})
     .map(([day, bullets]) => `第${day}天：${bullets.join("；")}`)
     .join("\n");
-  const targetSpeeches = (state.messages || [])
-    .filter((m) => !m.isSystem && m.playerId === target.playerId)
-    .map((m) => m.content)
-    .join("\n");
+}
+
+function buildMessageText(
+  state: GameState,
+  target: Player,
+  report?: GameAnalysisReport | null
+): { allMessages: string; targetSpeeches: string } {
+  const messages = report?.messages ?? state.messages ?? [];
   const seatMap = new Map((state.players ?? []).map((p) => [p.playerId, p.seat + 1]));
-  const allMessages = (state.messages || [])
-    .filter((m) => !m.isSystem)
+  const allMessages = messages
     .map((m) => {
       const seat = seatMap.get(m.playerId);
       const day = m.day ? `第${m.day}天` : "";
       const phase = m.phase ? ` ${m.phase}` : "";
-      const prefix = `${day}${phase}${day || phase ? " " : ""}${seat ? `${seat}号` : m.playerName ?? ""}`;
+      const speaker = m.isSystem ? "系统" : seat ? `${seat}号` : m.playerName ?? "";
+      const prefix = `${day}${phase}${day || phase ? " " : ""}${speaker}`;
       return `${prefix}: ${m.content}`;
     })
     .join("\n");
+  const targetSpeeches = messages
+    .filter((m) => !m.isSystem && m.playerId === target.playerId)
+    .map((m) => m.content)
+    .join("\n");
+  return { allMessages, targetSpeeches };
+}
+
+export function buildReviewPrompt(
+  state: GameState,
+  target: Player,
+  reviewer: Player,
+  report?: GameAnalysisReport | null
+): string {
+  const targetSeat = target.seat + 1;
+  const reviewerSeat = reviewer.seat + 1;
+  const winnerSide = resolveWinnerSide(state, report);
+  const playersSummary = buildPlayersSummary(state, report);
+  const historyText = buildTimelineText(state, report);
+  const { allMessages, targetSpeeches } = buildMessageText(state, target, report);
 
   return `你是狼人杀玩家复盘点评员，请以${reviewerSeat}号玩家「${reviewer.displayName}」的口吻，评价${targetSeat}号玩家「${target.displayName}」的整局表现。\n\n` +
-    `【游戏结果】${winnerSide}阵营获胜\n` +
+    `【权威赛后结论】${winnerSide}阵营获胜\n` +
+    `【目标身份】${formatIdentity(target, report)}\n` +
+    `【点评者身份】${formatIdentity(reviewer, report)}\n` +
     `【玩家列表】${playersSummary}\n` +
     `【全体发言】\n${allMessages || "（无发言记录）"}\n` +
     `【目标玩家发言】${targetSpeeches || "（无发言记录）"}\n` +
@@ -213,11 +276,12 @@ async function generateReviewContentWithRetry(
 
 export async function generateReviewCards(
   state: GameState,
-  targetSeat: number
+  targetSeat: number,
+  report?: GameAnalysisReport | null
 ): Promise<PlayerReviewCard[]> {
   const target = state.players.find((p) => p.seat + 1 === targetSeat);
   if (!target) return [];
-  const plan = buildReviewPlan(state, targetSeat);
+  const plan = buildReviewPlan(state, targetSeat, report);
   const primaryModel = getReviewModel();
   const now = Date.now();
 

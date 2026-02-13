@@ -7,6 +7,7 @@ import {
   insertReviewCards,
   loadLlmConfigFromDb,
 } from "@/lib/player-reviews";
+import { fetchGameAnalysisReport } from "@/lib/game-analysis-store";
 
 export const runtime = "nodejs";
 
@@ -69,7 +70,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Invalid game state" }, { status: 400 });
     }
 
-    const cards = await generateReviewCards(state, targetSeat);
+    const report = fetchGameAnalysisReport(db, gameId);
+    const cards = await generateReviewCards(state, targetSeat, report);
     insertReviewCards(db, cards);
     const stored = fetchReviewCards(db, gameId, targetSeat);
     return NextResponse.json({ ok: true, data: stored.length > 0 ? stored : cards });
