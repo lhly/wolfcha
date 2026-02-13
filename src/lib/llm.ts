@@ -89,6 +89,26 @@ export type BatchCompletionResult =
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const INVALID_MODEL_MARKER = "[INVALID_MODEL]";
 const invalidModelCache = new Set<string>();
+const API_CHAT_PATH = "/api/chat";
+
+export function resolveApiChatUrl(path: string): string {
+  if (!path.startsWith("/")) return path;
+  if (typeof window !== "undefined") return path;
+
+  const envOrigin =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.VERCEL_URL ??
+    process.env.NEXT_PUBLIC_VERCEL_URL;
+
+  if (envOrigin && envOrigin.trim()) {
+    const origin = envOrigin.startsWith("http") ? envOrigin : `https://${envOrigin}`;
+    return `${origin.replace(/\/+$/, "")}${path}`;
+  }
+
+  const port = process.env.PORT ?? "3000";
+  return `http://localhost:${port}${path}`;
+}
 
 function parseRetryAfterMs(response: Response): number | null {
   const raw = response.headers.get("retry-after");
@@ -219,6 +239,32 @@ async function fetchWithRetry(
 
   if (lastResponse) return lastResponse;
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+type StreamOptions = {
+  trackStats?: boolean;
+};
+
+function countInputChars(messages: LLMMessage[]): number {
+  return messages.reduce((sum, m) => {
+    if (typeof m.content === "string") return sum + m.content.length;
+    if (Array.isArray(m.content)) {
+      return sum + m.content.reduce((s, p) => s + ("text" in p ? p.text.length : 0), 0);
+    }
+    return sum;
+  }, 0);
+}
+
+function buildStreamRawResponse(content: string): ChatCompletionResponse {
+  return {
+    id: "stream",
+    choices: [
+      {
+        message: { role: "assistant", content },
+        finish_reason: "stop",
+      },
+    ],
+  };
 }
 
 export function stripMarkdownCodeFences(text: string): string {
@@ -420,6 +466,7 @@ export async function generateCompletion(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
+  const inputChars = countInputChars(options.messages);
 
   let response: Response;
   while (true) {
@@ -434,8 +481,48 @@ export async function generateCompletion(
       model: modelToUse,
     });
 
+    const requestOptions: GenerateOptions = {
+      ...options,
+      model: modelToUse,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: maxTokens,
+    };
+
+    try {
+      let streamContent = "";
+      for await (const chunk of generateCompletionStream(requestOptions, { trackStats: false })) {
+        streamContent += chunk;
+      }
+      if (!streamContent) {
+        throw new Error("Empty stream response");
+      }
+
+      const outputChars = streamContent.length;
+      gameStatsTracker.addAiCall({ inputChars, outputChars });
+      gameSessionTracker.addAiCall({ inputChars, outputChars });
+
+      return {
+        content: streamContent,
+        reasoning_details: undefined,
+        raw: buildStreamRawResponse(streamContent),
+      };
+    } catch (error) {
+      const streamError = error instanceof Error ? error : new Error(String(error));
+      if (isInvalidModelMessage(streamError.message)) {
+        invalidModelCache.add(modelToUse);
+        const fallback = pickFallbackModel(modelToUse, attempted);
+        if (fallback) {
+          modelToUse = fallback;
+          continue;
+        }
+      }
+      if (streamError.message !== "Empty stream response" && streamError.message !== "No response body") {
+        throw streamError;
+      }
+    }
+
     response = await fetchWithRetry(
-      "/api/chat",
+      resolveApiChatUrl(API_CHAT_PATH),
       {
         method: "POST",
         headers: {
@@ -446,8 +533,9 @@ export async function generateCompletion(
           apiKey,
           model: modelToUse,
           messages: options.messages,
-          temperature: options.temperature ?? 0.7,
+          temperature: requestOptions.temperature,
           max_tokens: maxTokens,
+          stream: false,
           ...(options.reasoning ? { reasoning: options.reasoning } : {}),
           ...(options.reasoning_effort ? { reasoning_effort: options.reasoning_effort } : {}),
           ...(options.response_format ? { response_format: options.response_format } : {}),
@@ -487,13 +575,6 @@ export async function generateCompletion(
   }
 
   // 统计 AI 调用
-  const inputChars = options.messages.reduce((sum, m) => {
-    if (typeof m.content === "string") return sum + m.content.length;
-    if (Array.isArray(m.content)) {
-      return sum + m.content.reduce((s, p) => s + ("text" in p ? p.text.length : 0), 0);
-    }
-    return sum;
-  }, 0);
   gameStatsTracker.addAiCall({
     inputChars,
     outputChars: assistantMessage.content.length,
@@ -531,7 +612,7 @@ export async function generateCompletionBatch(
   };
 
   const response = await fetchWithRetry(
-    "/api/chat",
+    resolveApiChatUrl(API_CHAT_PATH),
     {
       method: "POST",
       headers,
@@ -572,7 +653,8 @@ export async function generateCompletionBatch(
 }
 
 export async function* generateCompletionStream(
-  options: GenerateOptions
+  options: GenerateOptions,
+  streamOptions: StreamOptions = {}
 ): AsyncGenerator<string, void, unknown> {
   const maxTokens =
     typeof options.max_tokens === "number" && Number.isFinite(options.max_tokens)
@@ -596,7 +678,7 @@ export async function* generateCompletionStream(
     }
     attempted.add(modelToUse);
     response = await fetchWithRetry(
-      "/api/chat",
+      resolveApiChatUrl(API_CHAT_PATH),
       {
         method: "POST",
         headers: {
@@ -641,13 +723,8 @@ export async function* generateCompletionStream(
   let totalOutputChars = 0;
 
   // 计算输入字符数
-  const inputChars = options.messages.reduce((sum, m) => {
-    if (typeof m.content === "string") return sum + m.content.length;
-    if (Array.isArray(m.content)) {
-      return sum + m.content.reduce((s, p) => s + ("text" in p ? p.text.length : 0), 0);
-    }
-    return sum;
-  }, 0);
+  const inputChars = countInputChars(options.messages);
+  const trackStats = streamOptions.trackStats !== false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -676,14 +753,16 @@ export async function* generateCompletionStream(
   }
 
   // 流式结束后统计 AI 调用
-  gameStatsTracker.addAiCall({
-    inputChars,
-    outputChars: totalOutputChars,
-  });
-  gameSessionTracker.addAiCall({
-    inputChars,
-    outputChars: totalOutputChars,
-  });
+  if (trackStats) {
+    gameStatsTracker.addAiCall({
+      inputChars,
+      outputChars: totalOutputChars,
+    });
+    gameSessionTracker.addAiCall({
+      inputChars,
+      outputChars: totalOutputChars,
+    });
+  }
 }
 
 export async function generateJSON<T>(

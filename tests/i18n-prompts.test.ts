@@ -23,3 +23,11 @@ test("daySpeech user prompt renders without ICU errors (zh/en)", () => {
   assert.match(zh, /GC/);
   assert.match(en, /GC/);
 });
+
+test("publicClaims system prompt renders without ICU errors (zh/en)", () => {
+  const zh = getI18n("zh").t("gameMaster.publicClaims.systemPrompt", {});
+  const en = getI18n("en").t("gameMaster.publicClaims.systemPrompt", {});
+
+  assert.notEqual(zh, "gameMaster.publicClaims.systemPrompt");
+  assert.notEqual(en, "gameMaster.publicClaims.systemPrompt");
+});

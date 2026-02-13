@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameAnalysisData, PlayerReviewCard } from "@/types/analysis";
 import { buildSimpleAvatarUrl } from "@/lib/avatar-config";
+import { isValidReviewRequest, shouldAutoFetchReviews } from "./review-fetch";
 
 interface PlayerReviewTabsProps {
   data: GameAnalysisData;
@@ -62,6 +63,7 @@ export function PlayerReviewTabs({ data }: PlayerReviewTabsProps) {
   const [loadingSeat, setLoadingSeat] = useState<number | null>(null);
   const [errorSeat, setErrorSeat] = useState<number | null>(null);
   const requestIdRef = useRef(0);
+  const attemptedSeatsRef = useRef<Set<number>>(new Set());
 
   const selectedReviews = reviewMap[selectedSeat]?.items ?? [];
 
@@ -75,8 +77,15 @@ export function PlayerReviewTabs({ data }: PlayerReviewTabsProps) {
   }, [players]);
 
   const fetchReviews = useCallback(
-    async (seat: number) => {
-      if (reviewMap[seat]?.items?.length) return;
+    async (seat: number, options?: { force?: boolean }) => {
+      if (options?.force) {
+        attemptedSeatsRef.current.delete(seat);
+      }
+      if (!isValidReviewRequest(data.gameId, seat)) {
+        setErrorSeat(seat);
+        attemptedSeatsRef.current.add(seat);
+        return;
+      }
       setLoadingSeat(seat);
       setErrorSeat(null);
       const requestId = ++requestIdRef.current;
@@ -87,6 +96,10 @@ export function PlayerReviewTabs({ data }: PlayerReviewTabsProps) {
 
       try {
         const res = await fetch(`/api/player-reviews?${params.toString()}`);
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => "");
+          throw new Error(errorText || "Failed to fetch reviews");
+        }
         const json = await res.json();
         if (requestId !== requestIdRef.current) return;
         const existing = Array.isArray(json?.data) ? (json.data as PlayerReviewCard[]) : [];
@@ -100,6 +113,10 @@ export function PlayerReviewTabs({ data }: PlayerReviewTabsProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ game_id: data.gameId, target_seat: seat }),
         });
+        if (!genRes.ok) {
+          const errorText = await genRes.text().catch(() => "");
+          throw new Error(errorText || "Failed to generate reviews");
+        }
         const genJson = await genRes.json();
         if (requestId !== requestIdRef.current) return;
         const generated = Array.isArray(genJson?.data) ? (genJson.data as PlayerReviewCard[]) : [];
@@ -110,15 +127,22 @@ export function PlayerReviewTabs({ data }: PlayerReviewTabsProps) {
       } finally {
         if (requestId === requestIdRef.current) {
           setLoadingSeat(null);
+          attemptedSeatsRef.current.add(seat);
         }
       }
     },
-    [data.gameId, reviewMap]
+    [data.gameId]
   );
 
   useEffect(() => {
-    void fetchReviews(selectedSeat);
-  }, [fetchReviews, selectedSeat]);
+    const hasItems = (reviewMap[selectedSeat]?.items?.length ?? 0) > 0;
+    const hasAttempted = attemptedSeatsRef.current.has(selectedSeat);
+    const isLoading = loadingSeat === selectedSeat;
+    const hasError = errorSeat === selectedSeat;
+    if (shouldAutoFetchReviews({ hasItems, hasAttempted, isLoading, hasError })) {
+      void fetchReviews(selectedSeat);
+    }
+  }, [fetchReviews, selectedSeat, reviewMap, loadingSeat, errorSeat]);
 
   return (
     <section>
@@ -161,7 +185,7 @@ export function PlayerReviewTabs({ data }: PlayerReviewTabsProps) {
           <button
             type="button"
             className="text-xs text-[var(--color-gold)]"
-            onClick={() => fetchReviews(selectedSeat)}
+            onClick={() => fetchReviews(selectedSeat, { force: true })}
           >
             生成失败，点击重试
           </button>

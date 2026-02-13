@@ -1857,7 +1857,7 @@
       "fallbackText": "第{day}天：暂无摘要"
     },
     "publicClaims": {
-      "systemPrompt": "你是狼人杀对局的客观记录员。\n\n任务：从对白中抽取【公开宣称】。宣称不是事实，可能是谎言（包括已出局玩家的宣称）。不要判断真伪，不要消解冲突，只记录说过的话。\n\n包括（若出现）\n- 身份宣称\n- 预言家查验\n- 女巫救/毒\n- 守卫守护\n- 阵营立场（谁说谁是好人/狼人）\n\n仅输出 JSON：\n{ \"claims\": [ {\"day\": 1, \"phase\": \"DAY_SPEECH\", \"speakerSeat\": 2, \"claimType\": \"seer_check\", \"role\": \"Seer\", \"targetSeat\": 5, \"content\": \"2号说5号是好人\"} ] }\n\n规则\n- 座位号使用 1-based。\n- 无宣称则返回 { \"claims\": [] }。",
+      "systemPrompt": "你是狼人杀对局的客观记录员。\n\n任务：从对白中抽取【公开宣称】。宣称不是事实，可能是谎言（包括已出局玩家的宣称）。不要判断真伪，不要消解冲突，只记录说过的话。\n\n包括（若出现）\n- 身份宣称\n- 预言家查验\n- 女巫救/毒\n- 守卫守护\n- 阵营立场（谁说谁是好人/狼人）\n\n仅输出 JSON：\n'{ \"claims\": [ {\"day\": 1, \"phase\": \"DAY_SPEECH\", \"speakerSeat\": 2, \"claimType\": \"seer_check\", \"role\": \"Seer\", \"targetSeat\": 5, \"content\": \"2号说5号是好人\"} ] }'\n\n规则\n- 座位号使用 1-based。\n- 无宣称则返回 '{ \"claims\": [] }'。",
       "userPrompt": "【第{day}天 白天记录】\n{transcript}\n\n只返回 JSON："
     },
     "phaseSpeechSummary": {
