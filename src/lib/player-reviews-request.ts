@@ -4,6 +4,10 @@ export type NormalizedReviewRequest = {
   force: boolean;
 };
 
+export type ParseReviewRequestResult =
+  | { ok: true; value: NormalizedReviewRequest }
+  | { ok: false; error: "Missing game_id or target_seat" };
+
 function coerceToObject(input: unknown): Record<string, unknown> | null {
   if (!input) return null;
   if (typeof input === "string") {
@@ -39,4 +43,12 @@ export function normalizeReviewRequestBody(input: unknown): NormalizedReviewRequ
     targetSeat: Math.floor(seatNumber),
     force,
   };
+}
+
+export function parseReviewRequestBody(input: unknown): ParseReviewRequestResult {
+  const normalized = normalizeReviewRequestBody(input);
+  if (!normalized) {
+    return { ok: false, error: "Missing game_id or target_seat" };
+  }
+  return { ok: true, value: normalized };
 }

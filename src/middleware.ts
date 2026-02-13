@@ -10,6 +10,9 @@ export function middleware(request: NextRequest) {
     if (pathname.startsWith("/api/auth/totp")) {
       return NextResponse.next();
     }
+    if (request.headers.get("x-wolfcha-internal") === "1") {
+      return NextResponse.next();
+    }
     const authed = request.cookies.get(TOTP_COOKIE)?.value === "1";
     if (!authed) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });

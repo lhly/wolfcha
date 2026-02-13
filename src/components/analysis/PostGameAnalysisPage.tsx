@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { GameAnalysisData } from "@/types/analysis";
 import { AnalysisHeader } from "./AnalysisHeader";
 import { OverviewCard } from "./OverviewCard";
@@ -23,6 +24,7 @@ export function PostGameAnalysisPage({
   onReturn,
 }: PostGameAnalysisPageProps) {
   const [selectedRoundIndex, setSelectedRoundIndex] = useState(0);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerSnapshot | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [overrideTag, setOverrideTag] = useState<string | null>(null);
@@ -51,12 +53,14 @@ export function PostGameAnalysisPage({
           <div className="lg:col-span-5 space-y-8">
             <OverviewCard data={data} onSelectPlayer={openPlayerDetail} />
             <PersonalStatsCard stats={data.personalStats} overrideTag={overrideTag} onOverrideTagChange={setOverrideTag} />
-            <div className="hidden lg:block">
-              <PlayerReviewTabs data={data} />
-              <div className="mt-8">
-                <AnalysisFooter onShare={handleShare} onReturn={onReturn} />
+            {isDesktop && (
+              <div className="hidden lg:block">
+                <PlayerReviewTabs data={data} />
+                <div className="mt-8">
+                  <AnalysisFooter onShare={handleShare} onReturn={onReturn} />
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right Column - Timeline & Reviews */}
@@ -78,10 +82,12 @@ export function PostGameAnalysisPage({
             />
 
             {/* Mobile only: Reviews & Footer */}
-            <div className="lg:hidden space-y-8">
-              <PlayerReviewTabs data={data} />
-              <AnalysisFooter onShare={handleShare} onReturn={onReturn} />
-            </div>
+            {!isDesktop && (
+              <div className="lg:hidden space-y-8">
+                <PlayerReviewTabs data={data} />
+                <AnalysisFooter onShare={handleShare} onReturn={onReturn} />
+              </div>
+            )}
           </div>
         </div>
       </main>

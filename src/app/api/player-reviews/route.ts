@@ -8,6 +8,7 @@ import {
   loadLlmConfigFromDb,
 } from "@/lib/player-reviews";
 import { fetchGameAnalysisReport } from "@/lib/game-analysis-store";
+import { parseReviewRequestBody } from "@/lib/player-reviews-request";
 
 export const runtime = "nodejs";
 
@@ -38,13 +39,12 @@ export async function GET(request: Request) {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { game_id?: string; target_seat?: number; force?: boolean };
-    const gameId = body.game_id?.trim();
-    const targetSeat = Number.isFinite(body.target_seat) ? Math.floor(body.target_seat as number) : null;
-    const force = body.force === true;
-    if (!gameId || !targetSeat || targetSeat <= 0) {
-      return NextResponse.json({ ok: false, error: "Missing game_id or target_seat" }, { status: 400 });
+    const raw = await req.json();
+    const parsed = parseReviewRequestBody(raw);
+    if (!parsed.ok) {
+      return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 });
     }
+    const { gameId, targetSeat, force } = parsed.value;
 
     const db = getDb();
     loadLlmConfigFromDb(db);

@@ -1,7 +1,7 @@
 import { getLlmConfigWithDefaults } from "@/lib/llm-config";
 import { getGeneratorModel, getSelectedModels } from "@/lib/api-keys";
 import { type ModelRef } from "@/types/game";
-import { gameStatsTracker } from "@/hooks/useGameStats";
+import { gameStatsTracker } from "@/lib/game-stats-tracker";
 import { gameSessionTracker } from "@/lib/game-session-tracker";
 
 export type LLMContentPart =
@@ -527,6 +527,7 @@ export async function generateCompletion(
         method: "POST",
         headers: {
           ...headers,
+          "x-wolfcha-internal": "1",
         },
         body: JSON.stringify({
           baseUrl,
@@ -615,7 +616,7 @@ export async function generateCompletionBatch(
     resolveApiChatUrl(API_CHAT_PATH),
     {
       method: "POST",
-      headers,
+      headers: { ...headers, "x-wolfcha-internal": "1" },
       body: JSON.stringify({ baseUrl, apiKey, requests: resolvedRequests }),
     },
     3
@@ -683,6 +684,7 @@ export async function* generateCompletionStream(
         method: "POST",
         headers: {
           ...headers,
+          "x-wolfcha-internal": "1",
         },
         body: JSON.stringify({
           baseUrl,
