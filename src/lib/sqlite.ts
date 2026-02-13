@@ -58,6 +58,12 @@ function ensureSchema(database: Database.Database) {
       last_checkpoint_state_json TEXT,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS game_analysis (
+      game_id TEXT PRIMARY KEY,
+      report_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS player_reviews (
       id TEXT PRIMARY KEY,
       game_id TEXT NOT NULL,
