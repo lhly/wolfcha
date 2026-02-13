@@ -61,6 +61,15 @@ export async function resumeGameHistory(gameId: string) {
   return result.data ?? null;
 }
 
+export async function fetchGameHistoryDetail(gameId: string) {
+  const res = await fetch(`/api/game-history?id=${encodeURIComponent(gameId)}`);
+  const json = (await res.json()) as GameHistoryResponse<ResumeData | null>;
+  if (!res.ok) {
+    throw new Error(json.error ?? "game-history request failed");
+  }
+  return json.data ?? null;
+}
+
 export async function completeGameHistory(state: GameState, winner: "village" | "wolf") {
   const summary = {
     winner,

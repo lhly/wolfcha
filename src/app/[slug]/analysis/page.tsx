@@ -1,12 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { PostGameAnalysisPage } from "@/components/analysis";
-import { useGameAnalysis } from "@/hooks/useGameAnalysis";
+import { useGameAnalysisReport } from "@/hooks/useGameAnalysisReport";
 
 export default function AnalysisPage() {
   const router = useRouter();
-  const { analysisData, isLoading, error, triggerAnalysis } = useGameAnalysis();
+  const params = useParams();
+  const slug = params?.slug;
+  const gameId = Array.isArray(slug) ? slug[0] : slug;
+  const { analysisData, isLoading, error, reload } = useGameAnalysisReport(gameId);
 
   const handleReturn = () => {
     router.push("/");
@@ -30,7 +33,7 @@ export default function AnalysisPage() {
           <p className="text-red-400 text-sm mb-4">分析生成失败: {error}</p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => triggerAnalysis()}
+              onClick={() => reload()}
               className="px-5 py-2.5 rounded-lg text-sm font-bold bg-[var(--color-gold)] text-black hover:bg-[var(--color-gold)]/90 transition-colors"
             >
               重试
